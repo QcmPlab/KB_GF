@@ -56,7 +56,7 @@ make
 <details>
 <summary> Using <tt>ninja</tt> (click to expand)</summary>
 
-If a fortran-capable[^3] version of `ninja` ( https://ninja-build.org ) is available in your system (and CMake can[^4] take advantage of it), you can use it to build the library at lightning, multi-threaded, speed. 
+If a fortran-capable version of `ninja` ( https://ninja-build.org ) is available in your system (and CMake can take advantage of it), you can use it to build the library at lightning, multi-threaded, speed. 
 
 ```
 mkdir build    
