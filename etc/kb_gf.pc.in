@@ -1,0 +1,12 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}/bin
+includedir=${prefix}/include
+libdir=${prefix}/lib
+
+Name: kb_gf
+Description: The Kadanoff_Baym_GF library
+Cflags: -I${includedir}
+Libs: -L${libdir} -lkb_gf
+Version:@VERSION@
+
+
