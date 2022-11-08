@@ -146,7 +146,7 @@ contains
     complex(8)                            :: HxGk
     complex(8),dimension(:),allocatable   :: KxGk
     real(8),dimension(:),allocatable      :: ftau
-    complex(8),dimension(:,:),allocatable :: Amat,AxGkmat,Gkmat,dGkless
+    complex(8),dimension(:,:),allocatable :: Amat,GkxAmat,Gkmat,dGkless
     !
     N   = cc_params%Nt                 !<== work with the ACTUAL size of the contour
     L   = cc_params%Ntau
@@ -159,11 +159,11 @@ contains
     allocate(KxGk(0:max(N,L)))
     allocate(Amat(Nso,Nso))
     allocate(Gkmat(Nso,Nso))
-    allocate(AxGkmat(Nso,Nso))
+    allocate(GkxAmat(Nso,Nso))
     allocate(dGkless(Nso,Nso))
     Amat   =zero
     Gkmat  =zero
-    AxGkmat=zero
+    GkxAmat=zero
     dGkless=zero
     !
     !Treat here the t=0,0 case:
@@ -228,10 +228,10 @@ contains
     !Ret component
     !d/dt Gk^R(t,:) = -i*h(t)*Gk^R(t,:) -i*delta(t,:) 
     !TIP t_{N}, t`_{N}
-    AxGkmat = -xi*zeye(Nso)
+    GkxAmat = -xi*zeye(Nso)
     do concurrent (io=1:Nso,jo=1:Nso)
-       Gk(io,jo)%ret(N,N)    = AxGkmat(io,jo)
-       dGk_new(io,jo)%ret(N) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+       Gk(io,jo)%ret(N,N)    = GkxAmat(io,jo)
+       dGk_new(io,jo)%ret(N) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
     end do
     !
     !VERTICAL INTERVAL t_{N}, t'_{j=1,...,N-1}
@@ -239,10 +239,10 @@ contains
        do concurrent(io=1:Nso,jo=1:Nso)
           Gkmat(io,jo) = Gk(io,jo)%ret(N-1,j) + 0.5d0*dt*dGk(io,jo)%ret(j)
        enddo
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent(io=1:Nso,jo=1:Nso)
-          Gk(io,jo)%ret(N,j)    = AxGkmat(io,jo)
-          dGk_new(io,jo)%ret(j) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+          Gk(io,jo)%ret(N,j)    = GkxAmat(io,jo)
+          dGk_new(io,jo)%ret(j) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
        end do
     enddo
     !
@@ -253,10 +253,10 @@ contains
        do concurrent(io=1:Nso,jo=1:Nso)
           Gkmat(io,jo) = Gk(io,jo)%lmix(N-1,jtau) + 0.5d0*dt*dGk(io,jo)%lmix(jtau)
        end do
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent(io=1:Nso,jo=1:Nso)
-          Gk(io,jo)%lmix(N,jtau)    = AxGkmat(io,jo)
-          dGk_new(io,jo)%lmix(jtau) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+          Gk(io,jo)%lmix(N,jtau)    = GkxAmat(io,jo)
+          dGk_new(io,jo)%lmix(jtau) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
        end do
     enddo
     !
@@ -267,10 +267,10 @@ contains
        do concurrent(io=1:Nso,jo=1:Nso)
           Gkmat(io,jo) = Gk(io,jo)%less(N-1,j) + 0.5d0*dt*dGk(io,jo)%less(j)
        end do
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent(io=1:Nso,jo=1:Nso)
-          Gk(io,jo)%less(N,j)    = AxGkmat(io,jo)
-          dGk_new(io,jo)%less(j) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+          Gk(io,jo)%less(N,j)    = GkxAmat(io,jo)
+          dGk_new(io,jo)%less(j) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
        end do
     enddo tp_less
     !
@@ -293,13 +293,13 @@ contains
     do concurrent(io=1:Nso,jo=1:Nso)
        Gkmat(io,jo) = Gk(io,jo)%less(N-1,N)+0.5d0*dt*dGkless(io,jo)
     end do
-    AxGkmat=matmul(Amat,Gkmat)
+    GkxAmat=matmul(Gkmat,Amat)
     do concurrent(io=1:Nso,jo=1:Nso)
-       Gk(io,jo)%less(N,N)    = AxGkmat(io,jo)
-       dGk_new(io,jo)%less(N) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+       Gk(io,jo)%less(N,N)    = GkxAmat(io,jo)
+       dGk_new(io,jo)%less(N) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
     end do
     !
-    deallocate(KxGk,Amat,Gkmat,AxGkmat,dGkless)
+    deallocate(KxGk,Amat,Gkmat,GkxAmat,dGkless)
     !
   end subroutine free_kb_gf_rank2
 
@@ -318,7 +318,7 @@ contains
     complex(8)                            :: HxGk
     complex(8),dimension(:),allocatable   :: KxGk
     real(8),dimension(:),allocatable      :: ftau
-    complex(8),dimension(:,:),allocatable :: Amat,AxGkmat,Gkmat,dGkless
+    complex(8),dimension(:,:),allocatable :: Amat,GkxAmat,Gkmat,dGkless
     !
     N   = cc_params%Nt                 !<== work with the ACTUAL size of the contour
     L   = cc_params%Ntau
@@ -335,11 +335,11 @@ contains
     allocate(KxGk(0:max(N,L)))
     allocate(Amat(Nso,Nso))
     allocate(Gkmat(Nso,Nso))
-    allocate(AxGkmat(Nso,Nso))
+    allocate(GkxAmat(Nso,Nso))
     allocate(dGkless(Nso,Nso))
     Amat   =zero
     Gkmat  =zero
-    AxGkmat=zero
+    GkxAmat=zero
     dGkless=zero
     !
     !Treat here the t=0,0 case:
@@ -426,12 +426,12 @@ contains
     !Ret component
     !d/dt Gk^R(t,:) = -i*h(t)*Gk^R(t,:) -i*delta(t,:) 
     !TIP t_{N}, t`_{N}
-    AxGkmat = -xi*zeye(Nso)
+    GkxAmat = -xi*zeye(Nso)
     do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
        io = iorb + (ispin-1)*Norb
        jo = jorb + (jspin-1)*Norb
-       Gk(ispin,jspin,iorb,jorb)%ret(N,N)    = AxGkmat(io,jo)
-       dGk_new(ispin,jspin,iorb,jorb)%ret(N) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+       Gk(ispin,jspin,iorb,jorb)%ret(N,N)    = GkxAmat(io,jo)
+       dGk_new(ispin,jspin,iorb,jorb)%ret(N) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
     end do
     !
     !VERTICAL INTERVAL t_{N}, t'_{j=1,...,N-1}
@@ -441,12 +441,12 @@ contains
           jo = jorb + (jspin-1)*Norb
           Gkmat(io,jo) = Gk(ispin,jspin,iorb,jorb)%ret(N-1,j) + 0.5d0*dt*dGk(ispin,jspin,iorb,jorb)%ret(j)
        enddo
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb
           jo = jorb + (jspin-1)*Norb
-          Gk(ispin,jspin,iorb,jorb)%ret(N,j)    = AxGkmat(io,jo)
-          dGk_new(ispin,jspin,iorb,jorb)%ret(j) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+          Gk(ispin,jspin,iorb,jorb)%ret(N,j)    = GkxAmat(io,jo)
+          dGk_new(ispin,jspin,iorb,jorb)%ret(j) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
        end do
     enddo
     !
@@ -459,12 +459,12 @@ contains
           jo = jorb + (jspin-1)*Norb
           Gkmat(io,jo) = Gk(ispin,jspin,iorb,jorb)%lmix(N-1,jtau) + 0.5d0*dt*dGk(ispin,jspin,iorb,jorb)%lmix(jtau)
        end do
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb
           jo = jorb + (jspin-1)*Norb
-          Gk(ispin,jspin,iorb,jorb)%lmix(N,jtau)    = AxGkmat(io,jo)
-          dGk_new(ispin,jspin,iorb,jorb)%lmix(jtau) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+          Gk(ispin,jspin,iorb,jorb)%lmix(N,jtau)    = GkxAmat(io,jo)
+          dGk_new(ispin,jspin,iorb,jorb)%lmix(jtau) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
        end do
     enddo
     !
@@ -477,12 +477,12 @@ contains
           jo = jorb + (jspin-1)*Norb
           Gkmat(io,jo) = Gk(ispin,jspin,iorb,jorb)%less(N-1,j) + 0.5d0*dt*dGk(ispin,jspin,iorb,jorb)%less(j)
        end do
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb
           jo = jorb + (jspin-1)*Norb
-          Gk(ispin,jspin,iorb,jorb)%less(N,j)    = AxGkmat(io,jo)
-          dGk_new(ispin,jspin,iorb,jorb)%less(j) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+          Gk(ispin,jspin,iorb,jorb)%less(N,j)    = GkxAmat(io,jo)
+          dGk_new(ispin,jspin,iorb,jorb)%less(j) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
        end do
     enddo tp_less
     !
@@ -510,15 +510,15 @@ contains
        jo = jorb + (jspin-1)*Norb
        Gkmat(io,jo) = Gk(ispin,jspin,iorb,jorb)%less(N-1,N)+0.5d0*dt*dGkless(io,jo)
     end do
-    AxGkmat=matmul(Amat,Gkmat)
+    GkxAmat=matmul(Gkmat,Amat)
     do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
        io = iorb + (ispin-1)*Norb
        jo = jorb + (jspin-1)*Norb
-       Gk(ispin,jspin,iorb,jorb)%less(N,N)    = AxGkmat(io,jo)
-       dGk_new(ispin,jspin,iorb,jorb)%less(N) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+       Gk(ispin,jspin,iorb,jorb)%less(N,N)    = GkxAmat(io,jo)
+       dGk_new(ispin,jspin,iorb,jorb)%less(N) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
     end do
     !
-    deallocate(KxGk,Amat,Gkmat,AxGkmat,dGkless)
+    deallocate(KxGk,Amat,Gkmat,GkxAmat,dGkless)
     !
   end subroutine free_kb_gf_rank4
 
@@ -538,7 +538,7 @@ contains
     complex(8)                            :: HxGk
     complex(8),dimension(:),allocatable   :: KxGk
     real(8),dimension(:),allocatable      :: ftau
-    complex(8),dimension(:,:),allocatable :: Amat,AxGkmat,Gkmat,dGkless
+    complex(8),dimension(:,:),allocatable :: Amat,GkxAmat,Gkmat,dGkless
     !
     N   = cc_params%Nt                 !<== work with the ACTUAL size of the contour
     L   = cc_params%Ntau
@@ -555,11 +555,11 @@ contains
     allocate(KxGk(0:max(N,L)))
     allocate(Amat(Nlso,Nlso))
     allocate(Gkmat(Nlso,Nlso))
-    allocate(AxGkmat(Nlso,Nlso))
+    allocate(GkxAmat(Nlso,Nlso))
     allocate(dGkless(Nlso,Nlso))
     Amat   =zero
     Gkmat  =zero
-    AxGkmat=zero
+    GkxAmat=zero
     dGkless=zero
     !
     !Treat here the t=0,0 case:
@@ -656,12 +656,12 @@ contains
     !Ret component
     !d/dt Gk^R(t,:) = -i*h(t)*Gk^R(t,:) -i*delta(t,:) 
     !TIP t_{N}, t`_{N}
-    AxGkmat = -xi*zeye(Nlso)
+    GkxAmat = -xi*zeye(Nlso)
     do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
        io = iorb + (ispin-1)*Norb + (ilat-1)*Nspin*Norb
        jo = jorb + (jspin-1)*Norb + (jlat-1)*Nspin*Norb
-       Gk(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,N)    = AxGkmat(io,jo)
-       dGk_new(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+       Gk(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,N)    = GkxAmat(io,jo)
+       dGk_new(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
     end do
     !
     !VERTICAL INTERVAL t_{N}, t'_{j=1,...,N-1}
@@ -671,12 +671,12 @@ contains
           jo = jorb + (jspin-1)*Norb + (jlat-1)*Nspin*Norb
           Gkmat(io,jo) = Gk(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N-1,j) + 0.5d0*dt*dGk(ilat,jlat,ispin,jspin,iorb,jorb)%ret(j)
        enddo
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb + (ilat-1)*Nspin*Norb
           jo = jorb + (jspin-1)*Norb + (jlat-1)*Nspin*Norb
-          Gk(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,j)    = AxGkmat(io,jo)
-          dGk_new(ilat,jlat,ispin,jspin,iorb,jorb)%ret(j) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+          Gk(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,j)    = GkxAmat(io,jo)
+          dGk_new(ilat,jlat,ispin,jspin,iorb,jorb)%ret(j) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
        end do
     enddo
     !
@@ -689,12 +689,12 @@ contains
           jo = jorb + (jspin-1)*Norb + (jlat-1)*Nspin*Norb
           Gkmat(io,jo) = Gk(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N-1,jtau) + 0.5d0*dt*dGk(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(jtau)
        end do
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb + (ilat-1)*Nspin*Norb
           jo = jorb + (jspin-1)*Norb + (jlat-1)*Nspin*Norb
-          Gk(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau)    = AxGkmat(io,jo)
-          dGk_new(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(jtau) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+          Gk(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau)    = GkxAmat(io,jo)
+          dGk_new(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(jtau) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
        end do
     enddo
     !
@@ -707,12 +707,12 @@ contains
           jo = jorb + (jspin-1)*Norb + (jlat-1)*Nspin*Norb
           Gkmat(io,jo) = Gk(ilat,jlat,ispin,jspin,iorb,jorb)%less(N-1,j) + 0.5d0*dt*dGk(ilat,jlat,ispin,jspin,iorb,jorb)%less(j)
        end do
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb + (ilat-1)*Nspin*Norb
           jo = jorb + (jspin-1)*Norb + (jlat-1)*Nspin*Norb
-          Gk(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)    = AxGkmat(io,jo)
-          dGk_new(ilat,jlat,ispin,jspin,iorb,jorb)%less(j) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+          Gk(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)    = GkxAmat(io,jo)
+          dGk_new(ilat,jlat,ispin,jspin,iorb,jorb)%less(j) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
        end do
     enddo tp_less
     !
@@ -742,15 +742,15 @@ contains
        jo = jorb + (jspin-1)*Norb + (jlat-1)*Nspin*Norb
        Gkmat(io,jo) = Gk(ilat,jlat,ispin,jspin,iorb,jorb)%less(N-1,N)+0.5d0*dt*dGkless(io,jo)
     end do
-    AxGkmat=matmul(Amat,Gkmat)
+    GkxAmat=matmul(Gkmat,Amat)
     do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
        io = iorb + (ispin-1)*Norb + (ilat-1)*Nspin*Norb
        jo = jorb + (jspin-1)*Norb + (jlat-1)*Nspin*Norb
-       Gk(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,N)    = AxGkmat(io,jo)
-       dGk_new(ilat,jlat,ispin,jspin,iorb,jorb)%less(N) = -xi*sum(Hk(io,:,N)*AxGkmat(:,jo))
+       Gk(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,N)    = GkxAmat(io,jo)
+       dGk_new(ilat,jlat,ispin,jspin,iorb,jorb)%less(N) = -xi*sum(Hk(io,:,N)*GkxAmat(:,jo))
     end do
     !
-    deallocate(KxGk,Amat,Gkmat,AxGkmat,dGkless)
+    deallocate(KxGk,Amat,Gkmat,GkxAmat,dGkless)
     !
   end subroutine free_kb_gf_rank6
 

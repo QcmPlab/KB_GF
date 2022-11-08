@@ -254,7 +254,7 @@ contains
     complex(8)                            :: HxGk
     complex(8),dimension(:),allocatable   :: KxGk
     real(8),dimension(:),allocatable      :: ftau
-    complex(8),dimension(:,:),allocatable :: Amat,AxGkmat,Gkmat,dGkless
+    complex(8),dimension(:,:),allocatable :: Amat,GkxAmat,Gkmat,dGkless
     !
     N   = cc_params%Nt                 !<== work with the ACTUAL size of the contour
     L   = cc_params%Ntau
@@ -274,11 +274,11 @@ contains
     !
     allocate(Amat(Nso,Nso))
     allocate(Gkmat(Nso,Nso))
-    allocate(AxGkmat(Nso,Nso))
+    allocate(GkxAmat(Nso,Nso))
     allocate(dGkless(Nso,Nso))
     Amat   =zero
     Gkmat  =zero
-    AxGkmat=zero
+    GkxAmat=zero
     dGkless=zero
     !
     !Treat here the t=0,0 case:
@@ -306,53 +306,51 @@ contains
        deallocate(ftau)
        !
        !neq_setup_dgf:
-       do io=1,Nso
-          do jo=1,Nso
-             !get d/dt G_k^R = -i H(k,0)G_k^R
-             HxGk=zero
-             do ko=1,Nso
-                HxGk = HxGk - xi*Hk(io,ko,1)*Gk(ko,jo)%ret(1,1)
-             enddo
-             dGk_new(io,jo)%ret(1) = HxGk
-             !
-             !get d/dt G_k^< = -i H(k,0)G_k^< -xi(-xi)int_0^beta S^\lmix*G_k^\rmix
-             HxGk=zero
-             do ko=1,Nso
-                HxGk = HxGk - xi*Hk(io,ko,1)*Gk(ko,jo)%less(1,1)
-             enddo
-             !
-             KxGk(0:)=zero
-             do s=0,L
-                do ko=1,Nso
-                   KxGk(s)=KxGk(s)+K(io,ko)%lmix(1,s)*conjg( Gk(ko,jo)%lmix(1,L-s) )
-                enddo
-             enddo
-             dGk_new(io,jo)%less(1) = HxGk - xi*(-xi)*cc_params%dtau*kb_trapz(KxGk(0:),0,L)
-             !
-             !get d/dt G_k^\lmix = -xi*H(k,0)*G_k^\lmix - xi*int_0^beta G_k^\lmix*G_k^M
-             KxGk(0:)=zero
-             do ko=1,Nso
-                KxGk(0:) = KxGk(0:) - xi*Hk(io,ko,1)*Gk(ko,jo)%lmix(1,0:)
-             enddo
-             dGk_new(io,jo)%lmix(0:)= KxGk(0:)
-             do j=0,L
-                KxGk(0:)=zero
-                do s=0,j
-                   do ko=1,Nso
-                      KxGk(s)=KxGk(s) + K(io,ko)%lmix(1,s)*Gk(ko,jo)%mats(s+L-j)
-                   enddo
-                end do
-                dGk_new(io,jo)%lmix(j)=dGk_new(io,jo)%lmix(j)+xi*cc_params%dtau*kb_trapz(KxGk(0:),0,j)
-                KxGk(0:)=zero
-                do s=j,L
-                   do ko=1,Nso
-                      KxGk(s)=KxGk(s)+K(io,ko)%lmix(1,s)*Gk(ko,jo)%mats(s-j)
-                   enddo
-                enddo
-                dGk_new(io,jo)%lmix(j)=dGk_new(io,jo)%lmix(j)-xi*cc_params%dtau*kb_trapz(KxGk(0:),j,L)
-             enddo
-             !
+       do concurrent (io=1:Nso,jo=1:Nso)
+          !get d/dt G_k^R = -i H(k,0)G_k^R
+          HxGk=zero
+          do ko=1,Nso
+             HxGk = HxGk - xi*Hk(io,ko,1)*Gk(ko,jo)%ret(1,1)
           enddo
+          dGk_new(io,jo)%ret(1) = HxGk
+          !
+          !get d/dt G_k^< = -i H(k,0)G_k^< -xi(-xi)int_0^beta S^\lmix*G_k^\rmix
+          HxGk=zero
+          do ko=1,Nso
+             HxGk = HxGk - xi*Hk(io,ko,1)*Gk(ko,jo)%less(1,1)
+          enddo
+          !
+          KxGk(0:)=zero
+          do s=0,L
+             do ko=1,Nso
+                KxGk(s)=KxGk(s)+K(io,ko)%lmix(1,s)*conjg( Gk(ko,jo)%lmix(1,L-s) )
+             enddo
+          enddo
+          dGk_new(io,jo)%less(1) = HxGk - xi*(-xi)*cc_params%dtau*kb_trapz(KxGk(0:),0,L)
+          !
+          !get d/dt G_k^\lmix = -xi*H(k,0)*G_k^\lmix - xi*int_0^beta G_k^\lmix*G_k^M
+          KxGk(0:)=zero
+          do ko=1,Nso
+             KxGk(0:) = KxGk(0:) - xi*Hk(io,ko,1)*Gk(ko,jo)%lmix(1,0:)
+          enddo
+          dGk_new(io,jo)%lmix(0:)= KxGk(0:)
+          do j=0,L
+             KxGk(0:)=zero
+             do s=0,j
+                do ko=1,Nso
+                   KxGk(s)=KxGk(s) + K(io,ko)%lmix(1,s)*Gk(ko,jo)%mats(s+L-j)
+                enddo
+             end do
+             dGk_new(io,jo)%lmix(j)=dGk_new(io,jo)%lmix(j)+xi*cc_params%dtau*kb_trapz(KxGk(0:),0,j)
+             KxGk(0:)=zero
+             do s=j,L
+                do ko=1,Nso
+                   KxGk(s)=KxGk(s)+K(io,ko)%lmix(1,s)*Gk(ko,jo)%mats(s-j)
+                enddo
+             enddo
+             dGk_new(io,jo)%lmix(j)=dGk_new(io,jo)%lmix(j)-xi*cc_params%dtau*kb_trapz(KxGk(0:),j,L)
+          enddo
+          !
        enddo
        !
        return
@@ -368,7 +366,7 @@ contains
     ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     !TIP t_{N}, t`_{N}
     do io=1,Nso
-       Gk(io,io)%ret(N,N)   = -xi !check this line?
+       Gk(io,io)%ret(N,N)   = -xi
        do jo=1,Nso
           dGk_new(io,jo)%ret(N)= zero
           do ko=1,Nso
@@ -380,37 +378,31 @@ contains
     !VERTICAL INTERVAL t_{N}, t`_{j, j=1,...,N-1}
     tp_Ret:do j=1,N-1
        Amat = zeye(Nso)
-       do io=1,Nso
-          do jo=1,Nso
-             !Add Gk^R(t_{N-1},t_j) + dt/2* d_tGk^ret(t_{N-1},j)
-             Gkmat(io,jo) = Gk(io,jo)%ret(N-1,j) + 0.5d0*dt*dGk(io,jo)%ret(j)
-             !Add -xi*K^R(t_N,s)*Gk^R(s,t_j)
-             KxGk(0:)=zero
-             do s=j,N-1
-                do ko=1,Nso
-                   KxGk(s)=KxGk(s)+K(io,ko)%ret(N,s)*Gk(ko,jo)%ret(s,j)
-                enddo
+       do concurrent (io=1:Nso,jo=1:Nso)
+          !Add Gk^R(t_{N-1},t_j) + dt/2* d_tGk^ret(t_{N-1},j)
+          Gkmat(io,jo) = Gk(io,jo)%ret(N-1,j) + 0.5d0*dt*dGk(io,jo)%ret(j)
+          !Add -xi*K^R(t_N,s)*Gk^R(s,t_j)
+          KxGk(0:)=zero
+          do s=j,N-1
+             do ko=1,Nso
+                KxGk(s)=KxGk(s)+K(io,ko)%ret(N,s)*Gk(ko,jo)%ret(s,j)
              enddo
-             dGk_new(io,jo)%ret(j) = -xi*dt*kb_half_trapz(KxGk(0:),j,N-1)
-             Gkmat(io,jo)          = Gkmat(io,jo) + 0.5d0*dt*dGk_new(io,jo)%ret(j)
-             Amat(io,jo)           = Amat(io,jo) + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(io,jo)%ret(N,N)
           enddo
+          dGk_new(io,jo)%ret(j) = -xi*dt*kb_half_trapz(KxGk(0:),j,N-1)
+          Gkmat(io,jo)          = Gkmat(io,jo) + 0.5d0*dt*dGk_new(io,jo)%ret(j)
+          Amat(io,jo)           = Amat(io,jo) + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(io,jo)%ret(N,N)
        enddo
        call inv(Amat)
-       AxGkmat = matmul(Amat,Gkmat)
-       forall(io=1:Nso,jo=1:Nso)Gk(io,jo)%ret(N,j) = AxGkmat(io,jo)
+       GkxAmat = matmul(Gkmat,Amat)
+       forall(io=1:Nso,jo=1:Nso)Gk(io,jo)%ret(N,j) = GkxAmat(io,jo)
        !
        !
        !Update derivative d_t Gk^R(t,:) as:
        !d/dt Gk^R(t,:) = -i*h(t)*Gk^R(t,:) -i*delta(t,:) - i\int_{:}^t K^R(t,s)*Gk^R(s,:)ds
-       do io=1,Nso
-          do jo=1,Nso
-             !
-             do ko=1,Nso
-                dGk_new(io,jo)%ret(j) = dGk_new(io,jo)%ret(j) - xi*Hk(io,ko,N)*Gk(ko,jo)%ret(N,j)
-                dGk_new(io,jo)%ret(j) = dGk_new(io,jo)%ret(j) - 0.5d0*xi*dt*K(io,ko)%ret(N,N)*Gk(ko,jo)%ret(N,j)
-             enddo
-             !
+       do concurrent (io=1:Nso,jo=1:Nso)             !
+          do ko=1,Nso
+             dGk_new(io,jo)%ret(j) = dGk_new(io,jo)%ret(j) - xi*Hk(io,ko,N)*Gk(ko,jo)%ret(N,j)
+             dGk_new(io,jo)%ret(j) = dGk_new(io,jo)%ret(j) - 0.5d0*xi*dt*K(io,ko)%ret(N,N)*Gk(ko,jo)%ret(N,j)
           enddo
        enddo
        !
@@ -421,56 +413,52 @@ contains
     !d/dt Gk^\lmix(t,:) = -i*Hk(t)*Gk^\lmix(t,:) -i\int_0^\beta K^\lmix(t,s)*Gk^M(s,:)ds -i\int_0^t K^R(t,s)Gk^\lmix(s,:)ds
     jtau_lmix: do jtau=0,L
        Amat = zeye(Nso)
-       do io=1,Nso
-          do jo=1,Nso
-             !Add Gk^lmix(t_{N-1},tau_j) + dt/2* d_tGk^lmix(t_{N-1},tau_j)
-             Gkmat(io,jo) = Gk(io,jo)%lmix(N-1,jtau)+0.5d0*dt*dGk(io,jo)%lmix(jtau)
-             !Add Q^lmix(t_{N},tau_j) = K^lmix(N,stau)*Gk^mats(stau-jtau) stau<jtau
-             KxGk(0:)=zero
-             do s=0,jtau
-                do ko=1,Nso
-                   KxGk(s)=KxGk(s)+K(io,ko)%lmix(N,s)*Gk(ko,jo)%mats(s+L-jtau)
-                enddo
+       do concurrent (io=1:Nso,jo=1:Nso)
+          !Add Gk^lmix(t_{N-1},tau_j) + dt/2* d_tGk^lmix(t_{N-1},tau_j)
+          Gkmat(io,jo) = Gk(io,jo)%lmix(N-1,jtau)+0.5d0*dt*dGk(io,jo)%lmix(jtau)
+          !Add Q^lmix(t_{N},tau_j) = K^lmix(N,stau)*Gk^mats(stau-jtau) stau<jtau
+          KxGk(0:)=zero
+          do s=0,jtau
+             do ko=1,Nso
+                KxGk(s)=KxGk(s)+K(io,ko)%lmix(N,s)*Gk(ko,jo)%mats(s+L-jtau)
              enddo
-             dGk_new(io,jo)%lmix(jtau) = xi*dtau*kb_trapz(KxGk(0:),0,jtau)                 
-             !
-             !Add Q^lmix(t_{N},tau_j) = K^lmix(N,stau)*Gk^mats(stau-jtau) stau>jtau
-             KxGk(0:)=zero
-             do s=jtau,L
-                do ko=1,Nso
-                   KxGk(s)=KxGk(s)+K(io,ko)%lmix(N,s)*Gk(ko,jo)%mats(s-jtau)
-                enddo
-             enddo
-             dGk_new(io,jo)%lmix(jtau)= dGk_new(io,jo)%lmix(jtau)-xi*dtau*kb_trapz(KxGk(0:),jtau,L)
-             !
-             !Add -xi*K^R(t_N,s)*Gk^lmix(s,tau_j)
-             KxGk(0:)=zero
-             do s=1,N-1
-                do ko=1,Nso
-                   KxGk(s)=KxGk(s)+K(io,ko)%ret(N,s)*Gk(ko,jo)%lmix(s,jtau)
-                enddo
-             enddo
-             dGk_new(io,jo)%lmix(jtau)=dGk_new(io,jo)%lmix(jtau)-xi*dt*kb_half_trapz(KxGk(0:),1,N-1)
-             Gkmat(io,jo) = Gkmat(io,jo) + 0.5d0*dt*dGk_new(io,jo)%lmix(jtau)
-             Amat(io,jo)  = Amat(io,jo)  + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(io,jo)%ret(N,N)
           enddo
+          dGk_new(io,jo)%lmix(jtau) = xi*dtau*kb_trapz(KxGk(0:),0,jtau)                 
+          !
+          !Add Q^lmix(t_{N},tau_j) = K^lmix(N,stau)*Gk^mats(stau-jtau) stau>jtau
+          KxGk(0:)=zero
+          do s=jtau,L
+             do ko=1,Nso
+                KxGk(s)=KxGk(s)+K(io,ko)%lmix(N,s)*Gk(ko,jo)%mats(s-jtau)
+             enddo
+          enddo
+          dGk_new(io,jo)%lmix(jtau)= dGk_new(io,jo)%lmix(jtau)-xi*dtau*kb_trapz(KxGk(0:),jtau,L)
+          !
+          !Add -xi*K^R(t_N,s)*Gk^lmix(s,tau_j)
+          KxGk(0:)=zero
+          do s=1,N-1
+             do ko=1,Nso
+                KxGk(s)=KxGk(s)+K(io,ko)%ret(N,s)*Gk(ko,jo)%lmix(s,jtau)
+             enddo
+          enddo
+          dGk_new(io,jo)%lmix(jtau)=dGk_new(io,jo)%lmix(jtau)-xi*dt*kb_half_trapz(KxGk(0:),1,N-1)
+          Gkmat(io,jo) = Gkmat(io,jo) + 0.5d0*dt*dGk_new(io,jo)%lmix(jtau)
+          Amat(io,jo)  = Amat(io,jo)  + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(io,jo)%ret(N,N)
        enddo
        call inv(Amat)
-       AxGkmat = matmul(Amat,Gkmat)
-       forall(io=1:Nso,jo=1:Nso)Gk(io,jo)%lmix(N,jtau) = AxGkmat(io,jo)
+       GkxAmat = matmul(Gkmat,Amat)
+       forall(io=1:Nso,jo=1:Nso)Gk(io,jo)%lmix(N,jtau) = GkxAmat(io,jo)
        !
        !
        !Update derivative d_t Gk^\lmix(t,:) as: (dGkmat already holds all the terms not included below)
        !d/dt Gk^\lmix(t,:) = -i*Hk(t)*Gk^\lmix(t,:) -i\int_0^\beta K^\lmix(t,s)*Gk^M(s,:)ds -i\int_0^t K^R(t,s)Gk^\lmix(s,:)ds
-       do io=1,Nso
-          do jo=1,Nso
-             !
-             do ko=1,Nso
-                dGk_new(io,jo)%lmix(jtau) = dGk_new(io,jo)%lmix(jtau)- xi*Hk(io,ko,N)*Gk(ko,jo)%lmix(N,jtau)
-                dGk_new(io,jo)%lmix(jtau) = dGk_new(io,jo)%lmix(jtau)- 0.5d0*xi*dt*K(io,ko)%ret(N,N)*Gk(ko,jo)%lmix(N,jtau)
-             enddo
-             !
+       do concurrent (io=1:Nso,jo=1:Nso)
+          !
+          do ko=1,Nso
+             dGk_new(io,jo)%lmix(jtau) = dGk_new(io,jo)%lmix(jtau)- xi*Hk(io,ko,N)*Gk(ko,jo)%lmix(N,jtau)
+             dGk_new(io,jo)%lmix(jtau) = dGk_new(io,jo)%lmix(jtau)- 0.5d0*xi*dt*K(io,ko)%ret(N,N)*Gk(ko,jo)%lmix(N,jtau)
           enddo
+          !
        enddo
        !
     enddo jtau_lmix
@@ -485,52 +473,48 @@ contains
     ! Gk^<(t_{N},t_{j}), d/dt Gk^<(t_{N},t_{j}) <== lower-right triangle
     tp_less: do j=1,N-1
        Amat = zeye(Nso)
-       do io=1,Nso
-          do jo=1,Nso
-             Gkmat(io,jo) = Gk(io,jo)%less(N-1,j) + 0.5d0*dt*dGk(io,jo)%less(j)
-             KxGk(0:)=zero
-             do s=0,L
-                do ko=1,Nso
-                   KxGk(s)=KxGk(s)+K(io,ko)%lmix(N,s)*conjg( Gk(ko,jo)%lmix(j,L-s) ) !rmix <-- lmix
-                enddo
+       do concurrent (io=1:Nso,jo=1:Nso)
+          Gkmat(io,jo) = Gk(io,jo)%less(N-1,j) + 0.5d0*dt*dGk(io,jo)%less(j)
+          KxGk(0:)=zero
+          do s=0,L
+             do ko=1,Nso
+                KxGk(s)=KxGk(s)+K(io,ko)%lmix(N,s)*conjg( Gk(ko,jo)%lmix(j,L-s) ) !rmix <-- lmix
              enddo
-             dGk_new(io,jo)%less(j) = -xi*(-xi)*dtau*kb_trapz(KxGk(0:),0,L)
-             !
-             KxGk(0:)=zero
-             do s=1,j
-                do ko=1,Nso
-                   KxGk(s)=KxGk(s)+K(io,ko)%less(N,s)*conjg( Gk(ko,jo)%ret(j,s) ) !adv <-- ret
-                enddo
-             enddo
-             dGk_new(io,jo)%less(j)=dGk_new(io,jo)%less(j)-xi*dt*kb_trapz(KxGk(0:),1,j) !<= -iQ(t)
-             !
-             KxGk(0:)=zero
-             do s=1,N-1
-                do ko=1,Nso
-                   KxGk(s)=KxGk(s)+K(io,ko)%ret(N,s)*Gk(ko,jo)%less(s,j)
-                enddo
-             enddo
-             dGk_new(io,jo)%less(j)=dGk_new(io,jo)%less(j)-xi*dt*kb_half_trapz(KxGk(0:),1,N-1)
-             Gkmat(io,jo) = Gkmat(io,jo) + 0.5d0*dt*dGk_new(io,jo)%less(j)
-             Amat(io,jo)  = Amat(io,jo)  + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(io,jo)%ret(N,N)
           enddo
+          dGk_new(io,jo)%less(j) = -xi*(-xi)*dtau*kb_trapz(KxGk(0:),0,L)
+          !
+          KxGk(0:)=zero
+          do s=1,j
+             do ko=1,Nso
+                KxGk(s)=KxGk(s)+K(io,ko)%less(N,s)*conjg( Gk(ko,jo)%ret(j,s) ) !adv <-- ret
+             enddo
+          enddo
+          dGk_new(io,jo)%less(j)=dGk_new(io,jo)%less(j)-xi*dt*kb_trapz(KxGk(0:),1,j) !<= -iQ(t)
+          !
+          KxGk(0:)=zero
+          do s=1,N-1
+             do ko=1,Nso
+                KxGk(s)=KxGk(s)+K(io,ko)%ret(N,s)*Gk(ko,jo)%less(s,j)
+             enddo
+          enddo
+          dGk_new(io,jo)%less(j)=dGk_new(io,jo)%less(j)-xi*dt*kb_half_trapz(KxGk(0:),1,N-1)
+          Gkmat(io,jo) = Gkmat(io,jo) + 0.5d0*dt*dGk_new(io,jo)%less(j)
+          Amat(io,jo)  = Amat(io,jo)  + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(io,jo)%ret(N,N)
        enddo
        call inv(Amat)
-       AxGkmat=matmul(Amat,Gkmat)
-       forall(io=1:Nso,jo=1:Nso)Gk(io,jo)%less(N,j)= AxGkmat(io,jo)
+       GkxAmat=matmul(Gkmat,Amat)
+       forall(io=1:Nso,jo=1:Nso)Gk(io,jo)%less(N,j)= GkxAmat(io,jo)
        !
        !Update derivative d_t Gk^<(t,:) as: (dGkmat already holds all the terms not included below)
        !d/dt Gk^<(t,:) = -i*Hk(t)*Gk^<(t,:) -i*[ (-i)*\int_0^\beta K^\lmix(t,s)*Gk^\rmix(s,:)ds + \int_0^{:}K^<(t,s)*Gk^A(s,:)ds ]
        !                                 -i*\int_0^t K^R(t,s)*Gk^<(s,:)ds
-       do io=1,Nso
-          do jo=1,Nso
-             !
-             do ko=1,Nso
-                dGk_new(io,jo)%less(j) = dGk_new(io,jo)%less(j) - xi*Hk(io,ko,N)*Gk(ko,jo)%less(N,j)
-                dGk_new(io,jo)%less(j) = dGk_new(io,jo)%less(j) - 0.5d0*xi*dt*K(io,ko)%ret(N,N)*Gk(ko,jo)%less(N,j)
-             enddo
-             !
+       do concurrent (io=1:Nso,jo=1:Nso)
+          !
+          do ko=1,Nso
+             dGk_new(io,jo)%less(j) = dGk_new(io,jo)%less(j) - xi*Hk(io,ko,N)*Gk(ko,jo)%less(N,j)
+             dGk_new(io,jo)%less(j) = dGk_new(io,jo)%less(j) - 0.5d0*xi*dt*K(io,ko)%ret(N,N)*Gk(ko,jo)%less(N,j)
           enddo
+          !
        enddo
        !
     enddo tp_less
@@ -538,102 +522,96 @@ contains
     !
     ! Gk^<(t_{i},t_{N}), d/dt Gk^<(t_{i},t_{N}) <== upper left triangle
     ! Hermitian conjugate Gk
-    do i=1,N-1
-       forall(io=1:Nso,jo=1:Nso)Gk(io,jo)%less(i,N)=-conjg(Gk(jo,io)%less(N,i))
+    do concurrent (i=1:N-1,io=1:Nso,jo=1:Nso)
+       Gk(io,jo)%less(i,N)=-conjg(Gk(jo,io)%less(N,i))
     enddo
     !
     !
     ! d/dt Gk^<(t_{N-1},t_{N})
     dGkless=zero
-    do io=1,Nso
-       do jo=1,Nso
-          !
-          do ko=1,Nso
-             dGkless(io,jo) = dGkless(io,jo)-xi*Hk(io,ko,N-1)*Gk(ko,jo)%less(N-1,N)
-          enddo
-          !
-          KxGk(0:)=zero
-          do s=0,L
-             do ko=1,Nso
-                KxGk(s)=KxGk(s)+K(io,ko)%lmix(N-1,s)*conjg( Gk(ko,jo)%lmix(N,L-s) )!rmix <-- lmix
-             enddo
-          enddo
-          dGkless(io,jo) = dGkless(io,jo)-xi*(-xi)*dtau*kb_trapz(KxGk(0:),0,L)
-          !
-          KxGk(0:)=zero
-          do s=1,N
-             do ko=1,Nso
-                KxGk(s)=KxGk(s)+K(io,ko)%less(N-1,s)*conjg( Gk(ko,jo)%ret(N,s) ) !adv <-- ret
-             enddo
-          enddo
-          dGkless(io,jo) = dGkless(io,jo)-xi*dt*kb_trapz(KxGk(0:),1,N)
-          !
-          KxGk(0:)=zero
-          do s=1,N-1
-             do ko=1,Nso
-                KxGk(s)=KxGk(s)+K(io,ko)%ret(N-1,s)*Gk(ko,jo)%less(s,N)
-             enddo
-          enddo
-          dGkless(io,jo) = dGkless(io,jo)-xi*dt*kb_trapz(KxGk(0:),1,N-1)
+    do concurrent (io=1:Nso,jo=1:Nso)
+       !
+       do ko=1,Nso
+          dGkless(io,jo) = dGkless(io,jo)-xi*Hk(io,ko,N-1)*Gk(ko,jo)%less(N-1,N)
        enddo
+       !
+       KxGk(0:)=zero
+       do s=0,L
+          do ko=1,Nso
+             KxGk(s)=KxGk(s)+K(io,ko)%lmix(N-1,s)*conjg( Gk(ko,jo)%lmix(N,L-s) )!rmix <-- lmix
+          enddo
+       enddo
+       dGkless(io,jo) = dGkless(io,jo)-xi*(-xi)*dtau*kb_trapz(KxGk(0:),0,L)
+       !
+       KxGk(0:)=zero
+       do s=1,N
+          do ko=1,Nso
+             KxGk(s)=KxGk(s)+K(io,ko)%less(N-1,s)*conjg( Gk(ko,jo)%ret(N,s) ) !adv <-- ret
+          enddo
+       enddo
+       dGkless(io,jo) = dGkless(io,jo)-xi*dt*kb_trapz(KxGk(0:),1,N)
+       !
+       KxGk(0:)=zero
+       do s=1,N-1
+          do ko=1,Nso
+             KxGk(s)=KxGk(s)+K(io,ko)%ret(N-1,s)*Gk(ko,jo)%less(s,N)
+          enddo
+       enddo
+       dGkless(io,jo) = dGkless(io,jo)-xi*dt*kb_trapz(KxGk(0:),1,N-1)
     enddo
     !
     !
     !Gk^<(N,N), d/dt Gk^<(N,N)
     Amat = zeye(Nso)
-    do io=1,Nso
-       do jo=1,Nso
-          Gkmat(io,jo) = Gk(io,jo)%less(N-1,N)+0.5d0*dt*dGkless(io,jo)
-          KxGk(0:)=zero
-          do s=0,L
-             do ko=1,Nso
-                KxGk(s)=KxGk(s)+K(io,ko)%lmix(N,s)*conjg( Gk(ko,jo)%lmix(N,L-s) ) !get_rmix(Gk,s,N,L)
-             enddo
+    do concurrent (io=1:Nso,jo=1:Nso)
+       Gkmat(io,jo) = Gk(io,jo)%less(N-1,N)+0.5d0*dt*dGkless(io,jo)
+       KxGk(0:)=zero
+       do s=0,L
+          do ko=1,Nso
+             KxGk(s)=KxGk(s)+K(io,ko)%lmix(N,s)*conjg( Gk(ko,jo)%lmix(N,L-s) ) !get_rmix(Gk,s,N,L)
           enddo
-          dGk_new(io,jo)%less(N)=-xi*(-xi)*dtau*kb_trapz(KxGk(0:),0,L) !this one reset dGkmat
-          !
-          KxGk(0:)=zero
-          do s=1,N
-             do ko=1,Nso
-                KxGk(s)=KxGk(s)+K(io,ko)%less(N,s)*conjg( Gk(ko,jo)%ret(N,s) ) !get_adv(Gk,s,N)
-             enddo
-          enddo
-          dGk_new(io,jo)%less(N)=dGk_new(io,jo)%less(N) - xi*dt*kb_trapz(KxGk(0:),1,N)
-          !
-          KxGk(0:)=zero
-          do s=1,N-1
-             do ko=1,Nso
-                KxGk(s)=KxGk(s)+K(io,ko)%ret(N,s)*Gk(ko,jo)%less(s,N)
-             enddo
-          enddo
-          dGk_new(io,jo)%less(N)=dGk_new(io,jo)%less(N) - xi*dt*kb_half_trapz(KxGk(0:),1,N-1)
-          Gkmat(io,jo) = Gkmat(io,jo) + 0.5d0*dt*dGk_new(io,jo)%less(N)
-          Amat(io,jo)  = Amat(io,jo)  + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(io,jo)%ret(N,N)
        enddo
+       dGk_new(io,jo)%less(N)=-xi*(-xi)*dtau*kb_trapz(KxGk(0:),0,L) !this one reset dGkmat
+       !
+       KxGk(0:)=zero
+       do s=1,N
+          do ko=1,Nso
+             KxGk(s)=KxGk(s)+K(io,ko)%less(N,s)*conjg( Gk(ko,jo)%ret(N,s) ) !get_adv(Gk,s,N)
+          enddo
+       enddo
+       dGk_new(io,jo)%less(N)=dGk_new(io,jo)%less(N) - xi*dt*kb_trapz(KxGk(0:),1,N)
+       !
+       KxGk(0:)=zero
+       do s=1,N-1
+          do ko=1,Nso
+             KxGk(s)=KxGk(s)+K(io,ko)%ret(N,s)*Gk(ko,jo)%less(s,N)
+          enddo
+       enddo
+       dGk_new(io,jo)%less(N)=dGk_new(io,jo)%less(N) - xi*dt*kb_half_trapz(KxGk(0:),1,N-1)
+       Gkmat(io,jo) = Gkmat(io,jo) + 0.5d0*dt*dGk_new(io,jo)%less(N)
+       Amat(io,jo)  = Amat(io,jo)  + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(io,jo)%ret(N,N)
     enddo
     !
     call inv(Amat)
-    AxGkmat=matmul(Amat,Gkmat)
-    forall(io=1:Nso,jo=1:Nso)Gk(io,jo)%less(N,N) = AxGkmat(io,jo)
+    GkxAmat=matmul(Gkmat,Amat)
+    forall(io=1:Nso,jo=1:Nso)Gk(io,jo)%less(N,N) = GkxAmat(io,jo)
     !
     !
     !Update derivative d_t Gk^<(t,:) as: (dGkmat already holds all the terms not included below)
     !d/dt Gk^<(t,:) = -i*Hk(t)*Gk^<(t,:) -i*[ (-i)*\int_0^\beta K^\lmix(t,s)*Gk^\rmix(s,:)ds + \int_0^{:}K^<(t,s)*Gk^A(s,:)ds ]
     !                                 -i*\int_0^t K^R(t,s)*Gk^<(s,:)ds
-    do io=1,Nso
-       do jo=1,Nso
-          !
-          do ko=1,Nso
-             dGk_new(io,jo)%less(N) = dGk_new(io,jo)%less(N) - xi*Hk(io,ko,N)*Gk(ko,jo)%less(N,N)
-             dGk_new(io,jo)%less(N) = dGk_new(io,jo)%less(N) - 0.5d0*xi*dt*K(io,ko)%ret(N,N)*Gk(ko,jo)%less(N,N)
-          enddo
-          !
+    do concurrent (io=1:Nso,jo=1:Nso)
+       !
+       do ko=1,Nso
+          dGk_new(io,jo)%less(N) = dGk_new(io,jo)%less(N) - xi*Hk(io,ko,N)*Gk(ko,jo)%less(N,N)
+          dGk_new(io,jo)%less(N) = dGk_new(io,jo)%less(N) - 0.5d0*xi*dt*K(io,ko)%ret(N,N)*Gk(ko,jo)%less(N,N)
        enddo
+       !
     enddo
     !
     !
     deallocate(KxGk)
-    deallocate(Amat,Gkmat,AxGkmat,dGkless)
+    deallocate(Amat,Gkmat,GkxAmat,dGkless)
     !
   end subroutine dyson_kb_gf_rank2
 
@@ -652,7 +630,7 @@ contains
     complex(8)                            :: HxGk
     complex(8),dimension(:),allocatable   :: KxGk
     real(8),dimension(:),allocatable      :: ftau
-    complex(8),dimension(:,:),allocatable :: Amat,AxGkmat,Gkmat,dGkless
+    complex(8),dimension(:,:),allocatable :: Amat,GkxAmat,Gkmat,dGkless
     !
     N   = cc_params%Nt                 !<== work with the ACTUAL size of the contour
     L   = cc_params%Ntau
@@ -677,11 +655,11 @@ contains
     !
     allocate(Amat(Nso,Nso))
     allocate(Gkmat(Nso,Nso))
-    allocate(AxGkmat(Nso,Nso))
+    allocate(GkxAmat(Nso,Nso))
     allocate(dGkless(Nso,Nso))
     Amat   =zero
     Gkmat  =zero
-    AxGkmat=zero
+    GkxAmat=zero
     dGkless=zero
     !
     !Treat here the t=0,0 case:
@@ -833,11 +811,11 @@ contains
           Amat(io,jo)  = Amat(io,jo) + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(ispin,jspin,iorb,jorb)%ret(N,N)
        enddo
        call inv(Amat)
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb
           jo = jorb + (jspin-1)*Norb
-          Gk(ispin,jspin,iorb,jorb)%ret(N,j) = AxGkmat(io,jo)
+          Gk(ispin,jspin,iorb,jorb)%ret(N,j) = GkxAmat(io,jo)
        enddo
        !
        !
@@ -904,11 +882,11 @@ contains
           Amat(io,jo)  = Amat(io,jo)  + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(ispin,jspin,iorb,jorb)%ret(N,N)
        enddo
        call inv(Amat)
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb
           jo = jorb + (jspin-1)*Norb
-          Gk(ispin,jspin,iorb,jorb)%lmix(N,jtau) = AxGkmat(io,jo)
+          Gk(ispin,jspin,iorb,jorb)%lmix(N,jtau) = GkxAmat(io,jo)
        enddo
        !
        !
@@ -976,11 +954,11 @@ contains
           Amat(io,jo)  = Amat(io,jo)  + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(ispin,jspin,iorb,jorb)%ret(N,N)
        enddo
        call inv(Amat)
-       AxGkmat=matmul(Amat,Gkmat)
+       GkxAmat=matmul(Gkmat,Amat)
        do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb
           jo = jorb + (jspin-1)*Norb
-          Gk(ispin,jspin,iorb,jorb)%less(N,j)= AxGkmat(io,jo)
+          Gk(ispin,jspin,iorb,jorb)%less(N,j)= GkxAmat(io,jo)
        enddo
        !
        !Update derivative d_t Gk^<(t,:) as: (dGkmat already holds all the terms not included below)
@@ -1095,11 +1073,11 @@ contains
     enddo
     !
     call inv(Amat)
-    AxGkmat=matmul(Amat,Gkmat)
+    GkxAmat=matmul(Gkmat,Amat)
     do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
        io = iorb + (ispin-1)*Norb
        jo = jorb + (jspin-1)*Norb
-       Gk(ispin,jspin,iorb,jorb)%less(N,N) = AxGkmat(io,jo)
+       Gk(ispin,jspin,iorb,jorb)%less(N,N) = GkxAmat(io,jo)
     enddo
     !
     !
@@ -1121,7 +1099,7 @@ contains
     !
     !
     deallocate(KxGk)
-    deallocate(Amat,Gkmat,AxGkmat,dGkless)
+    deallocate(Amat,Gkmat,GkxAmat,dGkless)
     !
   end subroutine dyson_kb_gf_rank4
 
@@ -1140,7 +1118,7 @@ contains
     complex(8)                            :: HxGk
     complex(8),dimension(:),allocatable   :: KxGk
     real(8),dimension(:),allocatable      :: ftau
-    complex(8),dimension(:,:),allocatable :: Amat,AxGkmat,Gkmat,dGkless
+    complex(8),dimension(:,:),allocatable :: Amat,GkxAmat,Gkmat,dGkless
     !
     N   = cc_params%Nt                 !<== work with the ACTUAL size of the contour
     L   = cc_params%Ntau
@@ -1165,11 +1143,11 @@ contains
     !
     allocate(Amat(Nlso,Nlso))
     allocate(Gkmat(Nlso,Nlso))
-    allocate(AxGkmat(Nlso,Nlso))
+    allocate(GkxAmat(Nlso,Nlso))
     allocate(dGkless(Nlso,Nlso))
     Amat   =zero
     Gkmat  =zero
-    AxGkmat=zero
+    GkxAmat=zero
     dGkless=zero
     !
     !Treat here the t=0,0 case:
@@ -1341,11 +1319,11 @@ contains
           Amat(io,jo)  = Amat(io,jo) + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,N)
        enddo
        call inv(Amat)
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb
           jo = jorb + (jspin-1)*Norb
-          Gk(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,j) = AxGkmat(io,jo)
+          Gk(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,j) = GkxAmat(io,jo)
        enddo
        !
        !
@@ -1420,11 +1398,11 @@ contains
           Amat(io,jo)  = Amat(io,jo)  + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,N)
        enddo
        call inv(Amat)
-       AxGkmat = matmul(Amat,Gkmat)
+       GkxAmat = matmul(Gkmat,Amat)
        do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb
           jo = jorb + (jspin-1)*Norb
-          Gk(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau) = AxGkmat(io,jo)
+          Gk(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau) = GkxAmat(io,jo)
        enddo
        !
        !
@@ -1500,11 +1478,11 @@ contains
           Amat(io,jo)  = Amat(io,jo)  + 0.5d0*xi*dt*Hk(io,jo,N) + 0.25d0*xi*dt**2*K(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,N)
        enddo
        call inv(Amat)
-       AxGkmat=matmul(Amat,Gkmat)
+       GkxAmat=matmul(Gkmat,Amat)
        do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb
           jo = jorb + (jspin-1)*Norb
-          Gk(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)= AxGkmat(io,jo)
+          Gk(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)= GkxAmat(io,jo)
        enddo
        !
        !Update derivative d_t Gk^<(t,:) as: (dGkmat already holds all the terms not included below)
@@ -1635,11 +1613,11 @@ contains
     enddo
     !
     call inv(Amat)
-    AxGkmat=matmul(Amat,Gkmat)
+    GkxAmat=matmul(Gkmat,Amat)
     do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
        io = iorb + (ispin-1)*Norb
        jo = jorb + (jspin-1)*Norb
-       Gk(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,N) = AxGkmat(io,jo)
+       Gk(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,N) = GkxAmat(io,jo)
     enddo
     !
     !
@@ -1663,7 +1641,7 @@ contains
     !
     !
     deallocate(KxGk)
-    deallocate(Amat,Gkmat,AxGkmat,dGkless)
+    deallocate(Amat,Gkmat,GkxAmat,dGkless)
     !
   end subroutine dyson_kb_gf_rank6
 

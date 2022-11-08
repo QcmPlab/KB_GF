@@ -227,7 +227,7 @@ contains
     integer                               :: Nso,i,j,s,itau,jtau,io,jo,ko
     real(8),dimension(:),allocatable      :: ftau
     complex(8),dimension(:),allocatable   :: KxG
-    complex(8),dimension(:,:),allocatable :: Amat,Gmat
+    complex(8),dimension(:,:),allocatable :: Amat,Gmat,GxAmat
     !
     notail_=.true.;if(present(notail))notail_=notail
     !
@@ -242,21 +242,22 @@ contains
     call assert_shape_kb_gf(K,[Nso,Nso],"vie_kb_contour_gf_Rank2","K")
     call assert_shape_kb_gf(Q,[Nso,Nso],"vie_kb_contour_gf_Rank2","Q")
     !
-    allocate(KxG(0:max(N,L)),Amat(Nso,Nso),Gmat(Nso,Nso))
+    allocate(KxG(0:max(N,L)),Amat(Nso,Nso),Gmat(Nso,Nso),GxAmat(Nso,Nso))
     !
     if(N==1)then
        allocate(ftau(0:Niw))
        !Mats component:
        ![1d0 + K(iw)].G(iw) = Q(iw)
        do i=1,Niw
+          Gmat = zeye(Nso)
           do concurrent(io=1:Nso,jo=1:Nso)
              Amat(io,jo) = Q(io,jo)%iw(i)
-             Gmat(io,jo) = zeye(io,jo) + K(io,jo)%iw(i)
+             Gmat(io,jo) = Gmat(io,jo) + K(io,jo)%iw(i)
           enddo
           call inv(Gmat)
-          Gmat = matmul(Gmat,Amat)
+          GxAmat = matmul(Gmat,Amat)
           do concurrent(io=1:Nso,jo=1:Nso)
-             G(io,jo)%iw(i) = Gmat(io,jo)
+             G(io,jo)%iw(i) = GxAmat(io,jo)
           enddo
        enddo
        !
@@ -340,8 +341,8 @@ contains
           Amat(io,jo) = Amat(io,jo) - 0.5d0*dt*K(io,jo)%ret(N,N) !Check this line
        enddo
        call inv(Amat)
-       Gmat = matmul(Amat,Gmat) !check this line
-       forall(io=1:Nso,jo=1:Nso)G(io,jo)%ret(N,j) = Gmat(io,jo)
+       GxAmat = matmul(Gmat,Amat) !check this line
+       forall(io=1:Nso,jo=1:Nso)G(io,jo)%ret(N,j) = GxAmat(io,jo)
     end do
     !
     !
@@ -379,8 +380,8 @@ contains
           Amat(io,jo) = Amat(io,jo) - 0.5d0*dt*K(io,jo)%ret(N,N)
        enddo
        call inv(Amat)
-       Gmat = matmul(Amat,Gmat) !check this line
-       forall(io=1:Nso,jo=1:Nso)G(io,jo)%lmix(N,jtau) = Gmat(io,jo)
+       GxAmat = matmul(Gmat,Amat) !check this line
+       forall(io=1:Nso,jo=1:Nso)G(io,jo)%lmix(N,jtau) = GxAmat(io,jo)
     end do
     !
     !
@@ -420,8 +421,8 @@ contains
           Amat(io,jo) = Amat(io,jo) - 0.5d0*dt*K(io,jo)%ret(N,N)           
        enddo
        call inv(Amat)
-       Gmat = matmul(Amat,Gmat)
-       forall(io=1:Nso,jo=1:Nso)G(io,jo)%less(N,j) = Gmat(io,jo)
+       GxAmat = matmul(Gmat,Amat)
+       forall(io=1:Nso,jo=1:Nso)G(io,jo)%less(N,j) = GxAmat(io,jo)
     enddo
     !
     ! G^<(t_{i},t_{N}) <= Hermite conjugate
@@ -461,8 +462,8 @@ contains
        Amat(io,jo) = Amat(io,jo) - 0.5d0*dt*K(io,jo)%ret(N,N)
     enddo
     call inv(Amat)
-    Gmat = matmul(Amat,Gmat)
-    forall(io=1:Nso,jo=1:Nso)G(io,jo)%less(N,N) = Gmat(io,jo)
+    GxAmat = matmul(Gmat,Amat)
+    forall(io=1:Nso,jo=1:Nso)G(io,jo)%less(N,N) = GxAmat(io,jo)
     !
     !
     deallocate(KxG,Amat,Gmat)
@@ -483,7 +484,7 @@ contains
     integer                               :: Nspin,Norb,Nso,i,j,s,itau,jtau,io,jo
     real(8),dimension(:),allocatable      :: ftau
     complex(8),dimension(:),allocatable   :: KxG
-    complex(8),dimension(:,:),allocatable :: Amat,Gmat
+    complex(8),dimension(:,:),allocatable :: Amat,Gmat,GxAmat
     !
     notail_=.true.;if(present(notail))notail_=notail
     !
@@ -499,24 +500,25 @@ contains
     call assert_shape_kb_gf(K,[Nspin,Nspin,Norb,Norb],"vie_kb_gf_Rank4","K")
     call assert_shape_kb_gf(Q,[Nspin,Nspin,Norb,Norb],"vie_kb_gf_Rank4","Q")
     !
-    allocate(KxG(0:max(N,L)),Amat(Nso,Nso),Gmat(Nso,Nso))
+    allocate(KxG(0:max(N,L)),Amat(Nso,Nso),Gmat(Nso,Nso),GxAmat(Nso,Nso))
     !
     if(N==1)then
        allocate(ftau(0:Niw))
        !Mats component: [1d0 + K(iw)].G(iw) = Q(iw)
        do i=1,Niw
+          Gmat = zeye(Nso)
           do concurrent(ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
              io = iorb + (ispin-1)*Norb
              jo = jorb + (jspin-1)*Norb
              Amat(io,jo) = Q(ispin,jspin,iorb,jorb)%iw(i)
-             Gmat(io,jo) = zeye(io,jo) + K(ispin,jspin,iorb,jorb)%iw(i)
+             Gmat(io,jo) = Gmat(io,jo) + K(ispin,jspin,iorb,jorb)%iw(i)
           enddo
           call inv(Gmat)
           Gmat = matmul(Gmat,Amat)
           do concurrent(ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
              io = iorb + (ispin-1)*Norb
              jo = jorb + (jspin-1)*Norb
-             G(ispin,jspin,iorb,jorb)%iw(i) = Gmat(io,jo)
+             G(ispin,jspin,iorb,jorb)%iw(i) = GxAmat(io,jo)
           enddo
        enddo
        !
@@ -618,9 +620,9 @@ contains
           Amat(io,jo) = Amat(io,jo) - 0.5d0*dt*K(ispin,jspin,iorb,jorb)%ret(N,N) !Check this line
        enddo
        call inv(Amat)
-       Gmat = matmul(Amat,Gmat) !check this line
+       GxAmat = matmul(Gmat,Amat) !check this line
        do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
-          G(ispin,jspin,iorb,jorb)%ret(N,j) = Gmat(io,jo)
+          G(ispin,jspin,iorb,jorb)%ret(N,j) = GxAmat(io,jo)
        enddo
     end do
     !
@@ -667,11 +669,11 @@ contains
           Amat(io,jo) = Amat(io,jo) - 0.5d0*dt*K(ispin,jspin,iorb,jorb)%ret(N,N)
        enddo
        call inv(Amat)
-       Gmat = matmul(Amat,Gmat) !check this line
+       GxAmat = matmul(Gmat,Amat) !check this line
        do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb
           jo = jorb + (jspin-1)*Norb
-          G(ispin,jspin,iorb,jorb)%lmix(N,jtau) = Gmat(io,jo)
+          G(ispin,jspin,iorb,jorb)%lmix(N,jtau) = GxAmat(io,jo)
        end do
     end do
     !
@@ -718,11 +720,11 @@ contains
           Amat(io,jo) = Amat(io,jo) - 0.5d0*dt*K(ispin,jspin,iorb,jorb)%ret(N,N)           
        enddo
        call inv(Amat)
-       Gmat = matmul(Amat,Gmat)
+       GxAmat = matmul(Gmat,Amat)
        do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb
           jo = jorb + (jspin-1)*Norb
-          G(ispin,jspin,iorb,jorb)%less(N,j) = Gmat(io,jo)
+          G(ispin,jspin,iorb,jorb)%less(N,j) = GxAmat(io,jo)
        enddo
     enddo
     !
@@ -772,11 +774,11 @@ contains
        Amat(io,jo) = Amat(io,jo) - 0.5d0*dt*K(ispin,jspin,iorb,jorb)%ret(N,N)
     enddo
     call inv(Amat)
-    Gmat = matmul(Amat,Gmat)
+    GxAmat = matmul(Gmat,Amat)
     do concurrent (ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
        io = iorb + (ispin-1)*Norb
        jo = jorb + (jspin-1)*Norb
-       G(ispin,jspin,iorb,jorb)%less(N,N) = Gmat(io,jo)
+       G(ispin,jspin,iorb,jorb)%less(N,N) = GxAmat(io,jo)
     enddo
     !
     !
@@ -798,7 +800,7 @@ contains
     integer                               :: Nlat,Nspin,Norb,Nlso,i,j,s,itau,jtau,io,jo,ko
     real(8),dimension(:),allocatable      :: ftau
     complex(8),dimension(:),allocatable   :: KxG
-    complex(8),dimension(:,:),allocatable :: Amat,Gmat
+    complex(8),dimension(:,:),allocatable :: Amat,Gmat,GxAmat
     !
     notail_=.true.;if(present(notail))notail_=notail
     !
@@ -814,24 +816,25 @@ contains
     call assert_shape_kb_gf(K,[Nlat,Nlat,Nspin,Nspin,Norb,Norb],"vie_kb_gf_Rank6","K")
     call assert_shape_kb_gf(Q,[Nlat,Nlat,Nspin,Nspin,Norb,Norb],"vie_kb_gf_Rank6","Q")
     !
-    allocate(KxG(0:max(N,L)),Amat(Nlso,Nlso),Gmat(Nlso,Nlso))
+    allocate(KxG(0:max(N,L)),Amat(Nlso,Nlso),Gmat(Nlso,Nlso),GxAmat(Nso,Nso))
     !
     if(N==1)then
        allocate(ftau(0:Niw))
        !Mats component: [1d0 + K(iw)].G(iw) = Q(iw)
        do i=1,Niw
+          Gmat=zeye(Nso)
           do concurrent(ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
              io = iorb + (ispin-1)*Norb + (ilat-1)*Nspin*Norb
              jo = jorb + (jspin-1)*Norb + (ilat-1)*Nspin*Norb
              Amat(io,jo) = Q(ilat,jlat,ispin,jspin,iorb,jorb)%iw(i)
-             Gmat(io,jo) = zeye(io,jo) + K(ilat,jlat,ispin,jspin,iorb,jorb)%iw(i)
+             Gmat(io,jo) = Gmat(io,jo) + K(ilat,jlat,ispin,jspin,iorb,jorb)%iw(i)
           enddo
           call inv(Gmat)
           Gmat = matmul(Gmat,Amat)
           do concurrent(ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
              io = iorb + (ispin-1)*Norb + (ilat-1)*Nspin*Norb
              jo = jorb + (jspin-1)*Norb + (ilat-1)*Nspin*Norb
-             G(ilat,jlat,ispin,jspin,iorb,jorb)%iw(i) = Gmat(io,jo)
+             G(ilat,jlat,ispin,jspin,iorb,jorb)%iw(i) = GxAmat(io,jo)
           enddo
        enddo
        !
@@ -933,9 +936,9 @@ contains
           Amat(io,jo) = Amat(io,jo) - 0.5d0*dt*K(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,N) !Check this line
        enddo
        call inv(Amat)
-       Gmat = matmul(Amat,Gmat) !check this line
+       GxAmat = matmul(Gmat,Amat) !check this line
        do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
-          G(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,j) = Gmat(io,jo)
+          G(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,j) = GxAmat(io,jo)
        enddo
     end do
     !
@@ -982,11 +985,11 @@ contains
           Amat(io,jo) = Amat(io,jo) - 0.5d0*dt*K(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,N)
        enddo
        call inv(Amat)
-       Gmat = matmul(Amat,Gmat) !check this line
+       GxAmat = matmul(Gmat,Amat) !check this line
        do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb + (ilat-1)*Nspin*Norb
           jo = jorb + (jspin-1)*Norb + (ilat-1)*Nspin*Norb
-          G(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau) = Gmat(io,jo)
+          G(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau) = GxAmat(io,jo)
        end do
     end do
     !
@@ -1033,11 +1036,11 @@ contains
           Amat(io,jo) = Amat(io,jo) - 0.5d0*dt*K(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,N)           
        enddo
        call inv(Amat)
-       Gmat = matmul(Amat,Gmat)
+       GxAmat = matmul(Gmat,Amat)
        do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
           io = iorb + (ispin-1)*Norb + (ilat-1)*Nspin*Norb
           jo = jorb + (jspin-1)*Norb + (ilat-1)*Nspin*Norb
-          G(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j) = Gmat(io,jo)
+          G(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j) = GxAmat(io,jo)
        enddo
     enddo
     !
@@ -1087,11 +1090,11 @@ contains
        Amat(io,jo) = Amat(io,jo) - 0.5d0*dt*K(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,N)
     enddo
     call inv(Amat)
-    Gmat = matmul(Amat,Gmat)
+    GxAmat = matmul(Gmat,Amat)
     do concurrent (ilat=1:Nlat,jlat=1:Nlat,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
        io = iorb + (ispin-1)*Norb + (ilat-1)*Nspin*Norb
        jo = jorb + (jspin-1)*Norb + (ilat-1)*Nspin*Norb
-       G(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,N) = Gmat(io,jo)
+       G(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,N) = GxAmat(io,jo)
     enddo
     !
     !
