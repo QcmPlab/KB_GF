@@ -18,14 +18,18 @@ IF(PREFIX STREQUAL "${PREFIX_DEF_LOC}")
 ENDIF()
 
 #if not master branch, include simplified branch name
-IF( (NOT GIT_BRANCH MATCHES "master") )
+IF( (NOT GIT_BRANCH MATCHES "main") )
     SET(PREFIX_PATH  "${PREFIX_PATH}/${GIT_BRANCH}")
 ENDIF()
 
 #If DEBUG, add /debug to 
-IF("${BUILD_TYPE}" MATCHES "DEBUG")
+IF(BUILD_TYPE MATCHES "debug")
+  MESSAGE(STATUS "${BUILD_TYPE}")
   SET(PREFIX_PATH  "${PREFIX_PATH}/${BUILD_TYPE}")
 ENDIF()
+
+MESSAGE(STATUS "${BUILD_TYPE}")
+MESSAGE(STATUS "${PREFIX_PATH}")
 
 #set default prefix:
 SET(FULL_VER "${PREFIX_PATH}/${VERSION}")
