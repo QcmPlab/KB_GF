@@ -143,7 +143,7 @@ MODULE KB_GF_COMMON
   public :: assignment(=)
   public :: assert_shape_kb_gf
   public :: reshape_kb_gf
-
+  public :: revert_kb_gf
 
 
   integer,public :: N1,N2,N3,N4,N5,N6,N7,Nk
@@ -732,6 +732,27 @@ contains
     end select
   end subroutine extrapolate_kb_gf
 
+
+
+
+
+  !##################################################################
+  !##################################################################
+  !##################################################################
+  !##################################################################
+
+
+  elemental subroutine revert_kb_gf(C,coeff)
+    type(kb_gf),intent(inout) :: C
+    complex(8),intent(in)     :: coeff
+    integer                   :: N,L
+    N   = cc_params%Nt      !<== work with the ACTUAL size of the contour
+    L   = cc_params%Ntau
+    C%lmix(N,0:L)  = coeff*C%lmix(N,0:L)
+    C%less(N,1:N-1)= coeff*C%less(N,1:N-1)
+    C%less(1:N,N)  = coeff*C%less(1:N,N)
+    C%ret(N,1:N)   = coeff*C%ret(N,1:N)
+  end subroutine revert_kb_gf
 
 
   !##################################################################

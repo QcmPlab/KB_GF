@@ -65,8 +65,8 @@ contains
     !
     if(N==1)then
        !Mats components:
-       !C(iw)  =  A(iw)*B(iw) = FT[int_0^beta ds A(tau) B(tau-s)]
-       C%iw(:) = A%iw(:)*B%iw(:)
+       !C(iw)  =  -A(iw)*B(iw) = -FT[int_0^beta ds A(tau) B(tau-s)]
+       C%iw(:) = -A%iw(:)*B%iw(:)
        allocate(ftau(0:Niw))
        call fft_iw2tau(C%iw,ftau(0:),cc_params%beta,notail=.true.)
        call fft_extract_gtau(ftau(0:),C%mats(0:))
@@ -233,7 +233,7 @@ contains
              !C_ab(iw)  = sum_k A_ak(iw)*B_kb(iw) = FT[sum_k int_0^beta ds A_ak(tau) B_kb(tau-s)]
              C(i1,i2)%iw=zero
              do ik=1,Nk
-                C(i1,i2)%iw = C(i1,i2)%iw + A(i1,ik)%iw*B(ik,i2)%iw
+                C(i1,i2)%iw = C(i1,i2)%iw - A(i1,ik)%iw*B(ik,i2)%iw
              enddo
              call fft_iw2tau(C(i1,i2)%iw,ftau(0:),cc_params%beta,notail=.true.)
              call fft_extract_gtau(ftau(0:),C(i1,i2)%mats(0:))
@@ -445,7 +445,7 @@ contains
                    !C_ab(iw)  = sum_k A_ak(iw)*B_kb(iw) = FT[sum_k int_0^beta ds A_ak(tau) B_kb(tau-s)]
                    C(ispin,jspin,iorb,jorb)%iw=zero
                    do ik=1,Nk
-                      C(ispin,jspin,iorb,jorb)%iw = C(ispin,jspin,iorb,jorb)%iw + A(ispin,kspin,iorb,korb)%iw*B(kspin,jspin,korb,jorb)%iw
+                      C(ispin,jspin,iorb,jorb)%iw = C(ispin,jspin,iorb,jorb)%iw - A(ispin,kspin,iorb,korb)%iw*B(kspin,jspin,korb,jorb)%iw
                    enddo
                    call fft_iw2tau(C(ispin,jspin,iorb,jorb)%iw,ftau(0:),cc_params%beta,notail=.true.)
                    call fft_extract_gtau(ftau(0:),C(ispin,jspin,iorb,jorb)%mats(0:))
@@ -665,7 +665,7 @@ contains
                          !C_ab(iw)  = sum_k A_ak(iw)*B_kb(iw) = FT[sum_k int_0^beta ds A_ak(tau) B_kb(tau-s)]
                          C(ilat,jlat,ispin,jspin,iorb,jorb)%iw=zero
                          do ik=1,Nk
-                            C(ilat,jlat,ispin,jspin,iorb,jorb)%iw = C(ilat,jlat,ispin,jspin,iorb,jorb)%iw + A(ilat,klat,ispin,kspin,iorb,korb)%iw*B(klat,jlat,kspin,jspin,korb,jorb)%iw
+                            C(ilat,jlat,ispin,jspin,iorb,jorb)%iw = C(ilat,jlat,ispin,jspin,iorb,jorb)%iw - A(ilat,klat,ispin,kspin,iorb,korb)%iw*B(klat,jlat,kspin,jspin,korb,jorb)%iw
                          enddo
                          call fft_iw2tau(C(ilat,jlat,ispin,jspin,iorb,jorb)%iw,ftau(0:),cc_params%beta,notail=.true.)
                          call fft_extract_gtau(ftau(0:),C(ilat,jlat,ispin,jspin,iorb,jorb)%mats(0:))
