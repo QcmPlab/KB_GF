@@ -51,7 +51,7 @@ contains
     real(8)                             :: dt,dtau
     real(8),dimension(:),allocatable    :: ftau
     complex(8),dimension(:),allocatable :: AxB    
-    integer                             :: i,j,k,itau,jtau
+    integer                             :: i,j,k,jtau
     !
     call C%init()
     !
@@ -202,7 +202,7 @@ contains
     real(8)                             :: dt,dtau
     complex(8),dimension(:),allocatable :: AxB
     real(8),dimension(:),allocatable    :: ftau
-    integer                             :: i,j,s,itau,jtau,i1,i2,ik
+    integer                             :: i,j,s,jtau,i1,i2,ik
     !
     call C%init();C=zero
     !
@@ -409,11 +409,11 @@ contains
     type(kb_gf), intent(in)             :: A(:,:,:,:)                  ![Nspin,Nspin,Norb,Norb]
     type(kb_gf), intent(in)             :: B(:,:,:,:)                  ![Nspin,Nspin,Norb,Norb]
     type(kb_gf)                         :: C(size(A,1),size(A,2),size(A,3),size(A,4))
-    integer                             :: N,L,Nspin,Norb,Nk,Niw
+    integer                             :: N,L,Nspin,Norb,Niw
     real(8)                             :: dt,dtau
     complex(8),dimension(:),allocatable :: AxB
     real(8),dimension(:),allocatable    :: ftau
-    integer                             :: i,j,s,itau,jtau
+    integer                             :: i,j,s,jtau
     !
     call C%init();C=zero
     !
@@ -437,15 +437,17 @@ contains
     !Convolute all components
     if(N==1)then
        allocate(ftau(0:Niw))
-       do ispin=1,Nspin        
+       do ispin=1,Nspin
           do jspin=1,Nspin
              do iorb=1,Norb
                 do jorb=1,Norb
                    !Mats components:
                    !C_ab(iw)  = sum_k A_ak(iw)*B_kb(iw) = FT[sum_k int_0^beta ds A_ak(tau) B_kb(tau-s)]
                    C(ispin,jspin,iorb,jorb)%iw=zero
-                   do ik=1,Nk
-                      C(ispin,jspin,iorb,jorb)%iw = C(ispin,jspin,iorb,jorb)%iw - A(ispin,kspin,iorb,korb)%iw*B(kspin,jspin,korb,jorb)%iw
+                   do kspin=1,Nspin
+                      do korb=1,Norb
+                         C(ispin,jspin,iorb,jorb)%iw = C(ispin,jspin,iorb,jorb)%iw - A(ispin,kspin,iorb,korb)%iw*B(kspin,jspin,korb,jorb)%iw
+                      enddo
                    enddo
                    call fft_iw2tau(C(ispin,jspin,iorb,jorb)%iw,ftau(0:),cc_params%beta,notail=.true.)
                    call fft_extract_gtau(ftau(0:),C(ispin,jspin,iorb,jorb)%mats(0:))
@@ -461,15 +463,19 @@ contains
                       !I1:
                       AxB(0:) = zero
                       do s=0,jtau
-                         do ik=1,Nk
-                            AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(1,s)*B(kspin,jspin,korb,jorb)%mats(L+s-jtau)
+                         do kspin=1,Nspin
+                            do korb=1,Norb
+                               AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(1,s)*B(kspin,jspin,korb,jorb)%mats(L+s-jtau)
+                            enddo
                          enddo
                       enddo
                       C(ispin,jspin,iorb,jorb)%lmix(1,jtau)=C(ispin,jspin,iorb,jorb)%lmix(1,jtau)-dtau*kb_trapz(AxB(0:),0,jtau)
                       AxB(0:)=zero
                       do s=jtau,L
-                         do ik=1,Nk
-                            AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(1,s)*B(kspin,jspin,korb,jorb)%mats(s-jtau)
+                         do kspin=1,Nspin
+                            do korb=1,Norb
+                               AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(1,s)*B(kspin,jspin,korb,jorb)%mats(s-jtau)
+                            enddo
                          enddo
                       enddo
                       C(ispin,jspin,iorb,jorb)%lmix(1,jtau)=C(ispin,jspin,iorb,jorb)%lmix(1,jtau)+dtau*kb_trapz(AxB(0:),jtau,L)
@@ -482,8 +488,10 @@ contains
                    C(ispin,jspin,iorb,jorb)%less(1,1)=zero
                    AxB(0:) = zero
                    do s=0,L
-                      do ik=1,Nk
-                         AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(1,s)*conjg( B(kspin,jspin,korb,jorb)%lmix(1,L-s) )
+                      do kspin=1,Nspin
+                         do korb=1,Norb
+                            AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(1,s)*conjg( B(kspin,jspin,korb,jorb)%lmix(1,L-s) )
+                         enddo
                       enddo
                    enddo
                    C(ispin,jspin,iorb,jorb)%less(1,1)=C(ispin,jspin,iorb,jorb)%less(1,1)-xi*dtau*kb_trapz(AxB(0:),0,L)
@@ -499,121 +507,135 @@ contains
     endif
     !
     !
-    do ispin=1,Nspin        
-       do jspin=1,Nspin
-          do iorb=1,Norb
-             do jorb=1,Norb
-                !
-                !Ret. component
-                !C^R(t,t')=\int_{t'}^t ds A^R(t,s)*B^R(s,t')
-                C(ispin,jspin,iorb,jorb)%ret(N,1:N)=zero
-                do j=1,N
-                   AxB(0:) = zero
-                   do s=j,N
-                      do ik=1,Nk
-                         AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%ret(N,s)*B(kspin,jspin,korb,jorb)%ret(s,j)
-                      enddo
-                   enddo
+    do concurrent(ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
+       !
+       !Ret. component
+       !C^R(t,t')=\int_{t'}^t ds A^R(t,s)*B^R(s,t')
+       C(ispin,jspin,iorb,jorb)%ret(N,1:N)=zero
+       do j=1,N
+          AxB(0:) = zero
+          do s=j,N
+             do kspin=1,Nspin
+                do korb=1,Norb
+                   AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%ret(N,s)*B(kspin,jspin,korb,jorb)%ret(s,j)
                 enddo
-                C(ispin,jspin,iorb,jorb)%ret(n,j) = C(ispin,jspin,iorb,jorb)%ret(n,j) + dt*kb_trapz(AxB(0:),j,N)
-                !
-                !Lmix. component
-                !C^\lmix(t,tau')=\int_0^{beta} ds A^\lmix(t,s)*B^M(s,tau') I1
-                !                  +\int_0^{t} ds A^R(t,s)*B^\lmix(s,tau') I2
-                C(ispin,jspin,iorb,jorb)%lmix(N,0:L)=zero
-                do jtau=0,L
-                   !I1:
-                   AxB(0:) = zero
-                   do s=0,jtau
-                      do ik=1,Nk
-                         AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(N,s)*B(kspin,jspin,korb,jorb)%mats(L+s-jtau)
-                      enddo
-                   enddo
-                   C(ispin,jspin,iorb,jorb)%lmix(N,jtau)=C(ispin,jspin,iorb,jorb)%lmix(N,jtau)-dtau*kb_trapz(AxB(0:),0,jtau)
-                   AxB(0:)=zero
-                   do s=jtau,L
-                      do ik=1,Nk
-                         AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(N,s)*B(kspin,jspin,korb,jorb)%mats(s-jtau)
-                      enddo
-                   enddo
-                   C(ispin,jspin,iorb,jorb)%lmix(n,jtau)=C(ispin,jspin,iorb,jorb)%lmix(n,jtau)+dtau*kb_trapz(AxB(0:),jtau,L)
-                   !
-                   !I2:
-                   AxB(0:) = zero
-                   do s=1,N
-                      do ik=1,Nk
-                         AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%ret(N,s)*B(kspin,jspin,korb,jorb)%lmix(s,jtau)
-                      enddo
-                   enddo
-                   C(ispin,jspin,iorb,jorb)%lmix(N,jtau) = C(ispin,jspin,iorb,jorb)%lmix(N,jtau) + dt*kb_trapz(AxB(0:),1,N)
-                enddo
-                !
-                !Less component
-                !C^<(t,t')=-i\int_0^{beta} ds A^\lmix(t,s)*B^\rmix(s,t') I1.
-                !             +\int_0^{t'} ds A^<(t,s)*B^A(s,t')         I2. 
-                !             +\int_0^{t} ds A^R(t,s)*B^<(s,t')          I3. 
-                ! (t,t')=>(N,j) <==> Vertical side, with no tip (j=1,N-1)
-                C(ispin,jspin,iorb,jorb)%less(N,1:N-1)=zero
-                do j=1,N-1
-                   !I1.
-                   AxB(0:) = zero
-                   do s=0,L
-                      do ik=1,Nk
-                         AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(N,s)*conjg( B(kspin,jspin,korb,jorb)%lmix(j,L-s) ) !rmix <-- lmix
-                      enddo
-                   enddo
-                   C(ispin,jspin,iorb,jorb)%less(N,j)=C(ispin,jspin,iorb,jorb)%less(N,j)-xi*dtau*kb_trapz(AxB(0:),0,L)
-                   !
-                   !I2.
-                   AxB(0:) = zero
-                   do s=1,j
-                      do ik=1,Nk
-                         AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%less(N,s)*conjg( B(kspin,jspin,korb,jorb)%ret(j,s) ) !adv <-- ret
-                      enddo
-                   enddo
-                   C(ispin,jspin,iorb,jorb)%less(N,j)=C(ispin,jspin,iorb,jorb)%less(N,j)+dt*kb_trapz(AxB(0:),1,j)
-                   !
-                   !I3.
-                   AxB(0:) = zero
-                   do s=1,N
-                      do ik=1,Nk
-                         AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%ret(N,s)*B(kspin,jspin,korb,jorb)%less(s,j)
-                      enddo
-                   enddo
-                   C(ispin,jspin,iorb,jorb)%less(N,j)=C(ispin,jspin,iorb,jorb)%less(N,j)+dt*kb_trapz(AxB(0:),1,N)
-                end do
-                !
-                !
-                ! (t,t')=>(i,N) <==> Horizontal side, w/ tip (i=1,N)
-                do i=1,N
-                   C(ispin,jspin,iorb,jorb)%less(i,N)=zero
-                   AxB(0:) = zero
-                   do s=0,L
-                      do ik=1,Nk
-                         AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(i,s)*conjg( B(kspin,jspin,korb,jorb)%lmix(n,L-s) )
-                      enddo
-                   enddo
-                   C(ispin,jspin,iorb,jorb)%less(i,N)=C(ispin,jspin,iorb,jorb)%less(i,N)-xi*dtau*kb_trapz(AxB(0:),0,L)
-                   !
-                   AxB(0:) = zero
-                   do s=1,N
-                      do ik=1,Nk
-                         AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%less(i,s)*conjg( B(kspin,jspin,korb,jorb)%ret(N,s) )
-                      enddo
-                   enddo
-                   C(ispin,jspin,iorb,jorb)%less(i,N)=C(ispin,jspin,iorb,jorb)%less(i,N)+dt*kb_trapz(AxB(0:),1,N)
-                   !
-                   AxB(0:) = zero
-                   do s=1,i
-                      do ik=1,Nk
-                         AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%ret(i,s)*B(kspin,jspin,korb,jorb)%less(s,N)
-                      enddo
-                   enddo
-                   C(ispin,jspin,iorb,jorb)%less(i,N)=C(ispin,jspin,iorb,jorb)%less(i,N)+dt*kb_trapz(AxB(0:),1,i)
-                end do
              enddo
           enddo
        enddo
+       C(ispin,jspin,iorb,jorb)%ret(n,j) = C(ispin,jspin,iorb,jorb)%ret(n,j) + dt*kb_trapz(AxB(0:),j,N)
+       !
+       !Lmix. component
+       !C^\lmix(t,tau')=\int_0^{beta} ds A^\lmix(t,s)*B^M(s,tau') I1
+       !                  +\int_0^{t} ds A^R(t,s)*B^\lmix(s,tau') I2
+       C(ispin,jspin,iorb,jorb)%lmix(N,0:L)=zero
+       do jtau=0,L
+          !I1:
+          AxB(0:) = zero
+          do s=0,jtau
+             do kspin=1,Nspin
+                do korb=1,Norb
+                   AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(N,s)*B(kspin,jspin,korb,jorb)%mats(L+s-jtau)
+                enddo
+             enddo
+          enddo
+          C(ispin,jspin,iorb,jorb)%lmix(N,jtau)=C(ispin,jspin,iorb,jorb)%lmix(N,jtau)-dtau*kb_trapz(AxB(0:),0,jtau)
+          AxB(0:)=zero
+          do s=jtau,L
+             do kspin=1,Nspin
+                do korb=1,Norb
+                   AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(N,s)*B(kspin,jspin,korb,jorb)%mats(s-jtau)
+                enddo
+             enddo
+          enddo
+          C(ispin,jspin,iorb,jorb)%lmix(n,jtau)=C(ispin,jspin,iorb,jorb)%lmix(n,jtau)+dtau*kb_trapz(AxB(0:),jtau,L)
+          !
+          !I2:
+          AxB(0:) = zero
+          do s=1,N
+             do kspin=1,Nspin
+                do korb=1,Norb
+                   AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%ret(N,s)*B(kspin,jspin,korb,jorb)%lmix(s,jtau)
+                enddo
+             enddo
+          enddo
+          C(ispin,jspin,iorb,jorb)%lmix(N,jtau) = C(ispin,jspin,iorb,jorb)%lmix(N,jtau) + dt*kb_trapz(AxB(0:),1,N)
+       enddo
+       !
+       !Less component
+       !C^<(t,t')=-i\int_0^{beta} ds A^\lmix(t,s)*B^\rmix(s,t') I1.
+       !             +\int_0^{t'} ds A^<(t,s)*B^A(s,t')         I2. 
+       !             +\int_0^{t} ds A^R(t,s)*B^<(s,t')          I3. 
+       ! (t,t')=>(N,j) <==> Vertical side, with no tip (j=1,N-1)
+       C(ispin,jspin,iorb,jorb)%less(N,1:N-1)=zero
+       do j=1,N-1
+          !I1.
+          AxB(0:) = zero
+          do s=0,L
+             do kspin=1,Nspin
+                do korb=1,Norb
+                   AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(N,s)*conjg( B(kspin,jspin,korb,jorb)%lmix(j,L-s) ) !rmix <-- lmix
+                enddo
+             enddo
+          enddo
+          C(ispin,jspin,iorb,jorb)%less(N,j)=C(ispin,jspin,iorb,jorb)%less(N,j)-xi*dtau*kb_trapz(AxB(0:),0,L)
+          !
+          !I2.
+          AxB(0:) = zero
+          do s=1,j
+             do kspin=1,Nspin
+                do korb=1,Norb
+                   AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%less(N,s)*conjg( B(kspin,jspin,korb,jorb)%ret(j,s) ) !adv <-- ret
+                enddo
+             enddo
+          enddo
+          C(ispin,jspin,iorb,jorb)%less(N,j)=C(ispin,jspin,iorb,jorb)%less(N,j)+dt*kb_trapz(AxB(0:),1,j)
+          !
+          !I3.
+          AxB(0:) = zero
+          do s=1,N
+             do kspin=1,Nspin
+                do korb=1,Norb
+                   AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%ret(N,s)*B(kspin,jspin,korb,jorb)%less(s,j)
+                enddo
+             enddo
+          enddo
+          C(ispin,jspin,iorb,jorb)%less(N,j)=C(ispin,jspin,iorb,jorb)%less(N,j)+dt*kb_trapz(AxB(0:),1,N)
+       end do
+       !
+       !
+       ! (t,t')=>(i,N) <==> Horizontal side, w/ tip (i=1,N)
+       do i=1,N
+          C(ispin,jspin,iorb,jorb)%less(i,N)=zero
+          AxB(0:) = zero
+          do s=0,L
+             do kspin=1,Nspin
+                do korb=1,Norb
+                   AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%lmix(i,s)*conjg( B(kspin,jspin,korb,jorb)%lmix(n,L-s) )
+                enddo
+             enddo
+          enddo
+          C(ispin,jspin,iorb,jorb)%less(i,N)=C(ispin,jspin,iorb,jorb)%less(i,N)-xi*dtau*kb_trapz(AxB(0:),0,L)
+          !
+          AxB(0:) = zero
+          do s=1,N
+             do kspin=1,Nspin
+                do korb=1,Norb
+                   AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%less(i,s)*conjg( B(kspin,jspin,korb,jorb)%ret(N,s) )
+                enddo
+             enddo
+          enddo
+          C(ispin,jspin,iorb,jorb)%less(i,N)=C(ispin,jspin,iorb,jorb)%less(i,N)+dt*kb_trapz(AxB(0:),1,N)
+          !
+          AxB(0:) = zero
+          do s=1,i
+             do kspin=1,Nspin
+                do korb=1,Norb
+                   AxB(s) = AxB(s) + A(ispin,kspin,iorb,korb)%ret(i,s)*B(kspin,jspin,korb,jorb)%less(s,N)
+                enddo
+             enddo
+          enddo
+          C(ispin,jspin,iorb,jorb)%less(i,N)=C(ispin,jspin,iorb,jorb)%less(i,N)+dt*kb_trapz(AxB(0:),1,i)
+       end do
     enddo
     !
     deallocate(AxB)
@@ -626,11 +648,11 @@ contains
     type(kb_gf), intent(in)             :: A(:,:,:,:,:,:)                  ![Nlat,Nlat,Nspin,Nspin,Norb,Norb]
     type(kb_gf), intent(in)             :: B(:,:,:,:,:,:)                  ![Nlat,Nlat,Nspin,Nspin,Norb,Norb]
     type(kb_gf)                         :: C(size(A,1),size(A,2),size(A,3),size(A,4),size(A,5),size(A,6))
-    integer                             :: N,L,Nlat,Nspin,Norb,Nk,Niw
+    integer                             :: N,L,Nlat,Nspin,Norb,Niw
     real(8)                             :: dt,dtau
     complex(8),dimension(:),allocatable :: AxB
     real(8),dimension(:),allocatable    :: ftau
-    integer                             :: i,j,s,itau,jtau
+    integer                             :: i,j,s,jtau
     !
     call C%init();C=zero
     !
@@ -664,8 +686,12 @@ contains
                          !Mats components:
                          !C_ab(iw)  = sum_k A_ak(iw)*B_kb(iw) = FT[sum_k int_0^beta ds A_ak(tau) B_kb(tau-s)]
                          C(ilat,jlat,ispin,jspin,iorb,jorb)%iw=zero
-                         do ik=1,Nk
-                            C(ilat,jlat,ispin,jspin,iorb,jorb)%iw = C(ilat,jlat,ispin,jspin,iorb,jorb)%iw - A(ilat,klat,ispin,kspin,iorb,korb)%iw*B(klat,jlat,kspin,jspin,korb,jorb)%iw
+                         do klat=1,Nlat
+                            do kspin=1,Nspin
+                               do korb=1,Norb
+                                  C(ilat,jlat,ispin,jspin,iorb,jorb)%iw = C(ilat,jlat,ispin,jspin,iorb,jorb)%iw - A(ilat,klat,ispin,kspin,iorb,korb)%iw*B(klat,jlat,kspin,jspin,korb,jorb)%iw
+                               enddo
+                            enddo
                          enddo
                          call fft_iw2tau(C(ilat,jlat,ispin,jspin,iorb,jorb)%iw,ftau(0:),cc_params%beta,notail=.true.)
                          call fft_extract_gtau(ftau(0:),C(ilat,jlat,ispin,jspin,iorb,jorb)%mats(0:))
@@ -681,15 +707,23 @@ contains
                             !I1:
                             AxB(0:) = zero
                             do s=0,jtau
-                               do ik=1,Nk
-                                  AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(1,s)*B(klat,jlat,kspin,jspin,korb,jorb)%mats(L+s-jtau)
+                               do klat=1,Nlat
+                                  do kspin=1,Nspin
+                                     do korb=1,Norb
+                                        AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(1,s)*B(klat,jlat,kspin,jspin,korb,jorb)%mats(L+s-jtau)
+                                     enddo
+                                  enddo
                                enddo
                             enddo
                             C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(1,jtau)=C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(1,jtau)-dtau*kb_trapz(AxB(0:),0,jtau)
                             AxB(0:)=zero
                             do s=jtau,L
-                               do ik=1,Nk
-                                  AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(1,s)*B(klat,jlat,kspin,jspin,korb,jorb)%mats(s-jtau)
+                               do klat=1,Nlat
+                                  do kspin=1,Nspin
+                                     do korb=1,Norb
+                                        AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(1,s)*B(klat,jlat,kspin,jspin,korb,jorb)%mats(s-jtau)
+                                     enddo
+                                  enddo
                                enddo
                             enddo
                             C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(1,jtau)=C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(1,jtau)+dtau*kb_trapz(AxB(0:),jtau,L)
@@ -702,8 +736,12 @@ contains
                          C(ilat,jlat,ispin,jspin,iorb,jorb)%less(1,1)=zero
                          AxB(0:) = zero
                          do s=0,L
-                            do ik=1,Nk
-                               AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(1,s)*conjg( B(klat,jlat,kspin,jspin,korb,jorb)%lmix(1,L-s) )
+                            do klat=1,Nlat
+                               do kspin=1,Nspin
+                                  do korb=1,Norb
+                                     AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(1,s)*conjg( B(klat,jlat,kspin,jspin,korb,jorb)%lmix(1,L-s) )
+                                  enddo
+                               enddo
                             enddo
                          enddo
                          C(ilat,jlat,ispin,jspin,iorb,jorb)%less(1,1)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(1,1)-xi*dtau*kb_trapz(AxB(0:),0,L)
@@ -720,125 +758,155 @@ contains
        !
     endif
     !
-    do ilat=1,Nspin        
-       do jlat=1,Nspin
-          do ispin=1,Nspin        
-             do jspin=1,Nspin
-                do iorb=1,Norb
-                   do jorb=1,Norb
-                      !
-                      !Ret. component
-                      !C^R(t,t')=\int_{t'}^t ds A^R(t,s)*B^R(s,t')
-                      C(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,1:N)=zero
-                      do j=1,N
-                         AxB(0:) = zero
-                         do s=j,N
-                            do ik=1,Nk
-                               AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%ret(N,s)*B(klat,jlat,kspin,jspin,korb,jorb)%ret(s,j)
-                            enddo
-                         enddo
-                      enddo
-                      C(ilat,jlat,ispin,jspin,iorb,jorb)%ret(n,j) = C(ilat,jlat,ispin,jspin,iorb,jorb)%ret(n,j) + dt*kb_trapz(AxB(0:),j,N)
-                      !
-                      !Lmix. component
-                      !C^\lmix(t,tau')=\int_0^{beta} ds A^\lmix(t,s)*B^M(s,tau') I1
-                      !                  +\int_0^{t} ds A^R(t,s)*B^\lmix(s,tau') I2
-                      C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,0:L)=zero
-                      do jtau=0,L
-                         !I1:
-                         AxB(0:) = zero
-                         do s=0,jtau
-                            do ik=1,Nk
-                               AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(N,s)*B(klat,jlat,kspin,jspin,korb,jorb)%mats(L+s-jtau)
-                            enddo
-                         enddo
-                         C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau)=C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau)-dtau*kb_trapz(AxB(0:),0,jtau)
-                         AxB(0:)=zero
-                         do s=jtau,L
-                            do ik=1,Nk
-                               AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(N,s)*B(klat,jlat,kspin,jspin,korb,jorb)%mats(s-jtau)
-                            enddo
-                         enddo
-                         C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(n,jtau)=C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(n,jtau)+dtau*kb_trapz(AxB(0:),jtau,L)
-                         !
-                         !I2:
-                         AxB(0:) = zero
-                         do s=1,N
-                            do ik=1,Nk
-                               AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%ret(N,s)*B(klat,jlat,kspin,jspin,korb,jorb)%lmix(s,jtau)
-                            enddo
-                         enddo
-                         C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau) = C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau) + dt*kb_trapz(AxB(0:),1,N)
-                      enddo
-                      !
-                      !Less component
-                      !C^<(t,t')=-i\int_0^{beta} ds A^\lmix(t,s)*B^\rmix(s,t') I1.
-                      !             +\int_0^{t'} ds A^<(t,s)*B^A(s,t')         I2. 
-                      !             +\int_0^{t} ds A^R(t,s)*B^<(s,t')          I3. 
-                      ! (t,t')=>(N,j) <==> Vertical side, with no tip (j=1,N-1)
-                      C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,1:N-1)=zero
-                      do j=1,N-1
-                         !I1.
-                         AxB(0:) = zero
-                         do s=0,L
-                            do ik=1,Nk
-                               AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(N,s)*conjg( B(klat,jlat,kspin,jspin,korb,jorb)%lmix(j,L-s) ) !rmix <-- lmix
-                            enddo
-                         enddo
-                         C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)-xi*dtau*kb_trapz(AxB(0:),0,L)
-                         !
-                         !I2.
-                         AxB(0:) = zero
-                         do s=1,j
-                            do ik=1,Nk
-                               AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%less(N,s)*conjg( B(klat,jlat,kspin,jspin,korb,jorb)%ret(j,s) ) !adv <-- ret
-                            enddo
-                         enddo
-                         C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)+dt*kb_trapz(AxB(0:),1,j)
-                         !
-                         !I3.
-                         AxB(0:) = zero
-                         do s=1,N
-                            do ik=1,Nk
-                               AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%ret(N,s)*B(klat,jlat,kspin,jspin,korb,jorb)%less(s,j)
-                            enddo
-                         enddo
-                         C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)+dt*kb_trapz(AxB(0:),1,N)
-                      end do
-                      !
-                      !
-                      ! (t,t')=>(i,N) <==> Horizontal side, w/ tip (i=1,N)
-                      do i=1,N
-                         C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)=zero
-                         AxB(0:) = zero
-                         do s=0,L
-                            do ik=1,Nk
-                               AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(i,s)*conjg( B(klat,jlat,kspin,jspin,korb,jorb)%lmix(n,L-s) )
-                            enddo
-                         enddo
-                         C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)-xi*dtau*kb_trapz(AxB(0:),0,L)
-                         !
-                         AxB(0:) = zero
-                         do s=1,N
-                            do ik=1,Nk
-                               AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%less(i,s)*conjg( B(klat,jlat,kspin,jspin,korb,jorb)%ret(N,s) )
-                            enddo
-                         enddo
-                         C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)+dt*kb_trapz(AxB(0:),1,N)
-                         !
-                         AxB(0:) = zero
-                         do s=1,i
-                            do ik=1,Nk
-                               AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%ret(i,s)*B(klat,jlat,kspin,jspin,korb,jorb)%less(s,N)
-                            enddo
-                         enddo
-                         C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)+dt*kb_trapz(AxB(0:),1,i)
-                      end do
+    do concurrent(ilat=1:Nspin,jlat=1:Nspin,ispin=1:Nspin,jspin=1:Nspin,iorb=1:Norb,jorb=1:Norb)
+       !
+       !Ret. component
+       !C^R(t,t')=\int_{t'}^t ds A^R(t,s)*B^R(s,t')
+       C(ilat,jlat,ispin,jspin,iorb,jorb)%ret(N,1:N)=zero
+       do j=1,N
+          AxB(0:) = zero
+          do s=j,N
+             do klat=1,Nlat
+                do kspin=1,Nspin
+                   do korb=1,Norb
+                      AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%ret(N,s)*B(klat,jlat,kspin,jspin,korb,jorb)%ret(s,j)
                    enddo
                 enddo
              enddo
           enddo
        enddo
+       C(ilat,jlat,ispin,jspin,iorb,jorb)%ret(n,j) = C(ilat,jlat,ispin,jspin,iorb,jorb)%ret(n,j) + dt*kb_trapz(AxB(0:),j,N)
+       !
+       !Lmix. component
+       !C^\lmix(t,tau')=\int_0^{beta} ds A^\lmix(t,s)*B^M(s,tau') I1
+       !                  +\int_0^{t} ds A^R(t,s)*B^\lmix(s,tau') I2
+       C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,0:L)=zero
+       do jtau=0,L
+          !I1:
+          AxB(0:) = zero
+          do s=0,jtau
+             do klat=1,Nlat
+                do kspin=1,Nspin
+                   do korb=1,Norb
+                      AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(N,s)*B(klat,jlat,kspin,jspin,korb,jorb)%mats(L+s-jtau)
+                   enddo
+                enddo
+             enddo
+          enddo
+          C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau)=C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau)-dtau*kb_trapz(AxB(0:),0,jtau)
+          AxB(0:)=zero
+          do s=jtau,L
+             do klat=1,Nlat
+                do kspin=1,Nspin
+                   do korb=1,Norb
+                      AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(N,s)*B(klat,jlat,kspin,jspin,korb,jorb)%mats(s-jtau)
+                   enddo
+                enddo
+             enddo
+          enddo
+          C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(n,jtau)=C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(n,jtau)+dtau*kb_trapz(AxB(0:),jtau,L)
+          !
+          !I2:
+          AxB(0:) = zero
+          do s=1,N
+             do klat=1,Nlat
+                do kspin=1,Nspin
+                   do korb=1,Norb
+                      AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%ret(N,s)*B(klat,jlat,kspin,jspin,korb,jorb)%lmix(s,jtau)
+                   enddo
+                enddo
+             enddo
+          enddo
+          C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau) = C(ilat,jlat,ispin,jspin,iorb,jorb)%lmix(N,jtau) + dt*kb_trapz(AxB(0:),1,N)
+       enddo
+       !
+       !Less component
+       !C^<(t,t')=-i\int_0^{beta} ds A^\lmix(t,s)*B^\rmix(s,t') I1.
+       !             +\int_0^{t'} ds A^<(t,s)*B^A(s,t')         I2. 
+       !             +\int_0^{t} ds A^R(t,s)*B^<(s,t')          I3. 
+       ! (t,t')=>(N,j) <==> Vertical side, with no tip (j=1,N-1)
+       C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,1:N-1)=zero
+       do j=1,N-1
+          !I1.
+          AxB(0:) = zero
+          do s=0,L
+             do klat=1,Nlat
+                do kspin=1,Nspin
+                   do korb=1,Norb
+                      AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(N,s)*conjg( B(klat,jlat,kspin,jspin,korb,jorb)%lmix(j,L-s) ) !rmix <-- lmix
+                   enddo
+                enddo
+             enddo
+          enddo
+          C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)-xi*dtau*kb_trapz(AxB(0:),0,L)
+          !
+          !I2.
+          AxB(0:) = zero
+          do s=1,j
+             do klat=1,Nlat
+                do kspin=1,Nspin
+                   do korb=1,Norb
+                      AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%less(N,s)*conjg( B(klat,jlat,kspin,jspin,korb,jorb)%ret(j,s) ) !adv <-- ret
+                   enddo
+                enddo
+             enddo
+          enddo
+          C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)+dt*kb_trapz(AxB(0:),1,j)
+          !
+          !I3.
+          AxB(0:) = zero
+          do s=1,N
+             do klat=1,Nlat
+                do kspin=1,Nspin
+                   do korb=1,Norb
+                      AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%ret(N,s)*B(klat,jlat,kspin,jspin,korb,jorb)%less(s,j)
+                   enddo
+                enddo
+             enddo
+          enddo
+          C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(N,j)+dt*kb_trapz(AxB(0:),1,N)
+       end do
+       !
+       !
+       ! (t,t')=>(i,N) <==> Horizontal side, w/ tip (i=1,N)
+       do i=1,N
+          C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)=zero
+          AxB(0:) = zero
+          do s=0,L
+             do klat=1,Nlat
+                do kspin=1,Nspin
+                   do korb=1,Norb
+                      AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%lmix(i,s)*conjg( B(klat,jlat,kspin,jspin,korb,jorb)%lmix(n,L-s) )
+                   enddo
+                enddo
+             enddo
+          enddo
+          C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)-xi*dtau*kb_trapz(AxB(0:),0,L)
+          !
+          AxB(0:) = zero
+          do s=1,N
+             do klat=1,Nlat
+                do kspin=1,Nspin
+                   do korb=1,Norb
+                      AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%less(i,s)*conjg( B(klat,jlat,kspin,jspin,korb,jorb)%ret(N,s) )
+                   enddo
+                enddo
+             enddo
+          enddo
+          C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)+dt*kb_trapz(AxB(0:),1,N)
+          !
+          AxB(0:) = zero
+          do s=1,i
+             do klat=1,Nlat
+                do kspin=1,Nspin
+                   do korb=1,Norb
+                      AxB(s) = AxB(s) + A(ilat,klat,ispin,kspin,iorb,korb)%ret(i,s)*B(klat,jlat,kspin,jspin,korb,jorb)%less(s,N)
+                   enddo
+                enddo
+             enddo
+          enddo
+          C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)=C(ilat,jlat,ispin,jspin,iorb,jorb)%less(i,N)+dt*kb_trapz(AxB(0:),1,i)
+       end do
     enddo
     !
     deallocate(AxB)

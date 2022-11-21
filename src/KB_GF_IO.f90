@@ -3,7 +3,7 @@ MODULE KB_GF_IO
   USE KB_CONTOUR
   USE KB_AUX
   USE KB_GF_COMMON
-  USE SF_IOTOOLS
+  USE SF_IOTOOLS, only:reg,str,save_array,read_array,free_unit
   implicit none
   private
 
@@ -79,7 +79,6 @@ contains
   subroutine save_kb_gf_main(G,file)
     type(kb_gf)      :: G
     character(len=*) :: file
-    integer          :: unit
     call save_array(reg(file)//"_less.data",G%less(:,:))
     call save_array(reg(file)//"_ret.data", G%ret(:,:))
     call save_array(reg(file)//"_lmix.data",G%lmix(:,0:))
@@ -90,7 +89,6 @@ contains
   subroutine save_kb_gf_d1(G,file)
     type(kb_gf)      :: G(:)
     character(len=*) :: file
-    integer          :: unit
     do i1=1,size(G,1)
        call save_kb_gf_main(G(i1),&
             file//&
@@ -102,7 +100,6 @@ contains
   subroutine save_kb_gf_d2(G,file)
     type(kb_gf)      :: G(:,:)
     character(len=*) :: file
-    integer          :: unit
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           call save_kb_gf_main(G(i1,i2),&
@@ -117,7 +114,6 @@ contains
   subroutine save_kb_gf_d3(G,file)
     type(kb_gf)      :: G(:,:,:)
     character(len=*) :: file
-    integer          :: unit
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           do i3=1,size(G,3)
@@ -135,7 +131,6 @@ contains
   subroutine save_kb_gf_d4(G,file)
     type(kb_gf)      :: G(:,:,:,:)
     character(len=*) :: file
-    integer          :: unit
     Nspin=size(G,1)
     Norb =size(G,3)
     do ispin=1,Nspin
@@ -153,7 +148,6 @@ contains
   subroutine save_kb_gf_d5(G,file)
     type(kb_gf)      :: G(:,:,:,:,:)
     character(len=*) :: file
-    integer          :: unit
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           do i3=1,size(G,3)
@@ -177,7 +171,6 @@ contains
   subroutine save_kb_gf_d6(G,file)
     type(kb_gf)      :: G(:,:,:,:,:,:)
     character(len=*) :: file
-    integer          :: unit
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           do i3=1,size(G,3)
@@ -204,7 +197,6 @@ contains
   subroutine save_kb_gf_d7(G,file)
     type(kb_gf)      :: G(:,:,:,:,:,:,:)
     character(len=*) :: file
-    integer          :: unit
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           do i3=1,size(G,3)
@@ -264,7 +256,7 @@ contains
   subroutine read_kb_gf_d1(G,file)
     type(kb_gf)      :: G(:)
     character(len=*) :: file
-    integer          :: unit
+
     do i1=1,size(G,1)
        call read_kb_gf_main(G(i1),&
             file//&
@@ -276,7 +268,7 @@ contains
   subroutine read_kb_gf_d2(G,file)
     type(kb_gf)      :: G(:,:)
     character(len=*) :: file
-    integer          :: unit
+
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           call read_kb_gf_main(G(i1,i2),&
@@ -291,7 +283,7 @@ contains
   subroutine read_kb_gf_d3(G,file)
     type(kb_gf)      :: G(:,:,:)
     character(len=*) :: file
-    integer          :: unit
+
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           do i3=1,size(G,3)
@@ -309,7 +301,7 @@ contains
   subroutine read_kb_gf_d4(G,file)
     type(kb_gf)      :: G(:,:,:,:)
     character(len=*) :: file
-    integer          :: unit
+
     Nspin=size(G,1)
     Norb =size(G,3)
     do ispin=1,Nspin
@@ -327,7 +319,7 @@ contains
   subroutine read_kb_gf_d5(G,file)
     type(kb_gf)      :: G(:,:,:,:,:)
     character(len=*) :: file
-    integer          :: unit
+
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           do i3=1,size(G,3)
@@ -351,7 +343,7 @@ contains
   subroutine read_kb_gf_d6(G,file)
     type(kb_gf)      :: G(:,:,:,:,:,:)
     character(len=*) :: file
-    integer          :: unit
+
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           do i3=1,size(G,3)
@@ -378,7 +370,7 @@ contains
   subroutine read_kb_gf_d7(G,file)
     type(kb_gf)      :: G(:,:,:,:,:,:,:)
     character(len=*) :: file
-    integer          :: unit
+
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           do i3=1,size(G,3)
@@ -421,53 +413,62 @@ contains
 
 
   subroutine plot_kb_gf_main(G,file)
-    character(len=*) :: file
-    type(kb_gf)      :: G
-    integer          :: Nt
-    if(.not.G%status)stop "contour_gf/plot_kb_gf: G is not allocated" 
+    character(len=*)       :: file
+    type(kb_gf),intent(in) :: G
+    integer                :: Nt
+    write(0,*)"check"
+    if(.not.G%check())stop "contour_gf/plot_kb_gf: G.check = F"
     Nt=cc_params%Ntime
-    call splot3d(reg(file)//"_less_t_t.neqipt",cc_params%t(:Nt),cc_params%t(:Nt),G%less(:Nt,:Nt))
-    call splot3d(reg(file)//"_ret_t_t.neqipt",cc_params%t(:Nt),cc_params%t(:Nt),G%ret(:Nt,:Nt))
-    call splot3d(reg(file)//"_lmix_t_tau.neqipt",cc_params%t(:Nt),cc_params%tau(0:),G%lmix(:Nt,0:))
-    call splot(reg(file)//"_mats_tau.neqipt",cc_params%tau(0:),G%mats(0:))
-    call splot(reg(file)//"_mats_iw.neqipt",cc_params%wm(:),G%iw(:))
+    write(0,*)"enter kb_gf_3dplot Gless"
+    ! call splot3d("Gloc_less.neqipt",cc_params%t,cc_params%t,G%less(1:Nt,1:Nt))
+    call kb_gf_3dplot("Gloc_less.neqipt",cc_params%t,cc_params%t,G%less(1:Nt,1:Nt))
+    ! write(0,*)"plot 3d Gret ",file//"_ret_t_t.neqipt"
+    ! call splot3d(file//"_ret_t_t.neqipt",cc_params%t(:),cc_params%t(:),G%ret(1:Nt,1:Nt))
+    ! write(0,*)"plot 3d Glmix ",file//"_lmix_t_tau.neqipt"
+    ! call splot3d(file//"_lmix_t_tau.neqipt",cc_params%t(:),cc_params%tau(0:),G%lmix(1:Nt,0:))
+    ! write(0,*)"plot Gtau ",file//"_mats_tau.neqipt"
+    ! call splot(file//"_mats_tau.neqipt",cc_params%tau(0:),G%mats(0:))
+    ! write(0,*)"plot Giw ",file//"_mats_iw.neqipt"
+    ! call splot(file//"_mats_iw.neqipt",cc_params%wm(:),G%iw(:))
+    write(0,*)"exit"
   end subroutine plot_kb_gf_main
 
 
   subroutine plot_kb_gf_d1(G,file)
-    type(kb_gf) :: G(:)
+    type(kb_gf),intent(in) :: G(:)
     character(len=*)    :: file
-    integer             :: unit
     do i1=1,size(G,1)
        call plot_kb_gf_main(G(i1),&
-            file//&
+            reg(file)//&
             "_i"//str(i1))
     enddo
   end subroutine plot_kb_gf_d1
 
   subroutine plot_kb_gf_d2(G,file)
-    type(kb_gf) :: G(:,:)
-    character(len=*)    :: file
-    integer             :: unit
+    type(kb_gf),intent(in)      :: G(:,:)
+    character(len=*) :: file
     do i1=1,size(G,1)
        do i2=1,size(G,2)
+          write(0,*)i1,i2,size(G,1),size(G,2)
+          write(0,*)"before call"
           call plot_kb_gf_main(G(i1,i2),&
-               file//&
+               str(file)//&
                "_io"//str(i1)//&
                "_jo"//str(i2))
+          write(0,*)"after call"
        enddo
     enddo
   end subroutine plot_kb_gf_d2
 
   subroutine plot_kb_gf_d3(G,file)
-    type(kb_gf) :: G(:,:,:)
+    type(kb_gf),intent(in) :: G(:,:,:)
     character(len=*)    :: file
-    integer             :: unit
+
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           do i3=1,size(G,3)
              call plot_kb_gf_main(G(i1,i2,i3),&
-                  file//&
+                  reg(file)//&
                   "_i"//str(i1)//&
                   "_j"//str(i2)//&
                   "_k"//str(i3))
@@ -477,9 +478,9 @@ contains
   end subroutine plot_kb_gf_d3
 
   subroutine plot_kb_gf_d4(G,file)
-    type(kb_gf) :: G(:,:,:,:)
+    type(kb_gf),intent(in) :: G(:,:,:,:)
     character(len=*)    :: file
-    integer             :: unit
+
     Nspin=size(G,1)
     Norb =size(G,3)
     do ispin=1,Nspin
@@ -495,16 +496,16 @@ contains
   end subroutine plot_kb_gf_d4
 
   subroutine plot_kb_gf_d5(G,file)
-    type(kb_gf) :: G(:,:,:,:,:)
+    type(kb_gf),intent(in) :: G(:,:,:,:,:)
     character(len=*)    :: file
-    integer             :: unit
+
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           do i3=1,size(G,3)
              do i4=1,size(G,4)
                 do i5=1,size(G,5)
                    call plot_kb_gf_main(G(i1,i2,i3,i4,i5),&
-                        file//&
+                        reg(file)//&
                         "_i"//str(i1)//&
                         "_j"//str(i2)//&
                         "_k"//str(i3)//&
@@ -518,9 +519,9 @@ contains
   end subroutine plot_kb_gf_d5
 
   subroutine plot_kb_gf_d6(G,file)
-    type(kb_gf) :: G(:,:,:,:,:,:)
+    type(kb_gf),intent(in) :: G(:,:,:,:,:,:)
     character(len=*)    :: file
-    integer             :: unit
+
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           do i3=1,size(G,3)
@@ -528,7 +529,7 @@ contains
                 do i5=1,size(G,5)
                    do i6=1,size(G,6)
                       call plot_kb_gf_main(G(i1,i2,i3,i4,i5,i6),&
-                           file//&
+                           reg(file)//&
                            "_i"//str(i1)//&
                            "_j"//str(i2)//&
                            "_k"//str(i3)//&
@@ -544,9 +545,9 @@ contains
   end subroutine plot_kb_gf_d6
 
   subroutine plot_kb_gf_d7(G,file)
-    type(kb_gf) :: G(:,:,:,:,:,:,:)
+    type(kb_gf),intent(in) :: G(:,:,:,:,:,:,:)
     character(len=*)    :: file
-    integer             :: unit
+
     do i1=1,size(G,1)
        do i2=1,size(G,2)
           do i3=1,size(G,3)
@@ -555,7 +556,7 @@ contains
                    do i6=1,size(G,6)
                       do i7=1,size(G,7)
                          call plot_kb_gf_main(G(i1,i2,i3,i4,i5,i6,i7),&
-                              file//&
+                              reg(file)//&
                               "_i"//str(i1)//&
                               "_j"//str(i2)//&
                               "_k"//str(i3)//&
@@ -593,7 +594,6 @@ contains
   subroutine save_kb_dgf_main(dG,file)
     type(kb_dgf)     :: dG
     character(len=*) :: file
-    integer          :: unit
     call save_array(reg(file)//"_less.data",dG%less(:))
     call save_array(reg(file)//"_ret.data", dG%ret(:))
     call save_array(reg(file)//"_lmix.data",dG%lmix(0:))
@@ -602,10 +602,9 @@ contains
   subroutine save_kb_dgf_d1(dG,file)
     type(kb_dgf)     :: dG(:)
     character(len=*) :: file
-    integer          :: unit
     do i1=1,size(dG,1)
        call save_kb_dgf_main(dG(i1),&
-            file//&
+            reg(file)//&
             "_i"//str(i1)&
             )
     enddo
@@ -614,11 +613,10 @@ contains
   subroutine save_kb_dgf_d2(dG,file)
     type(kb_dgf)     :: dG(:,:)
     character(len=*) :: file
-    integer          :: unit
     do i1=1,size(dG,1)
        do i2=1,size(dG,2)
           call save_kb_dgf_main(dG(i1,i2),&
-               file//&
+               reg(file)//&
                "_io"//str(i1)//&
                "_jo"//str(i2)&
                )
@@ -629,12 +627,11 @@ contains
   subroutine save_kb_dgf_d3(dG,file)
     type(kb_dgf)     :: dG(:,:,:)
     character(len=*) :: file
-    integer          :: unit
     do i1=1,size(dG,1)
        do i2=1,size(dG,2)
           do i3=1,size(dG,3)
              call save_kb_dgf_main(dG(i1,i2,i3),&
-                  file//&
+                  reg(file)//&
                   "_i"//str(i1)//&
                   "_j"//str(i2)//&
                   "_k"//str(i3)&
@@ -647,7 +644,6 @@ contains
   subroutine save_kb_dgf_d4(dG,file)
     type(kb_dgf)     :: dG(:,:,:,:)
     character(len=*) :: file
-    integer          :: unit
     Nspin=size(dG,1)
     Norb =size(dG,3)
     do ispin=1,Nspin
@@ -665,14 +661,13 @@ contains
   subroutine save_kb_dgf_d5(dG,file)
     type(kb_dgf)     :: dG(:,:,:,:,:)
     character(len=*) :: file
-    integer          :: unit
     do i1=1,size(dG,1)
        do i2=1,size(dG,2)
           do i3=1,size(dG,3)
              do i4=1,size(dG,4)
                 do i5=1,size(dG,5)
                    call save_kb_dgf_main(dG(i1,i2,i3,i4,i5),&
-                        file//&
+                        reg(file)//&
                         "_i"//str(i1)//&
                         "_j"//str(i2)//&
                         "_k"//str(i3)//&
@@ -689,7 +684,6 @@ contains
   subroutine save_kb_dgf_d6(dG,file)
     type(kb_dgf)     :: dG(:,:,:,:,:,:)
     character(len=*) :: file
-    integer          :: unit
     do i1=1,size(dG,1)
        do i2=1,size(dG,2)
           do i3=1,size(dG,3)
@@ -697,7 +691,7 @@ contains
                 do i5=1,size(dG,5)
                    do i6=1,size(dG,6)
                       call save_kb_dgf_main(dG(i1,i2,i3,i4,i5,i6),&
-                           file//&
+                           reg(file)//&
                            "_i"//str(i1)//&
                            "_j"//str(i2)//&
                            "_k"//str(i3)//&
@@ -716,7 +710,6 @@ contains
   subroutine save_kb_dgf_d7(dG,file)
     type(kb_dgf)     :: dG(:,:,:,:,:,:,:)
     character(len=*) :: file
-    integer          :: unit
     do i1=1,size(dG,1)
        do i2=1,size(dG,2)
           do i3=1,size(dG,3)
@@ -725,7 +718,7 @@ contains
                    do i6=1,size(dG,6)
                       do i7=1,size(dG,7)
                          call save_kb_dgf_main(dG(i1,i2,i3,i4,i5,i6,i7),&
-                              file//&
+                              reg(file)//&
                               "_i"//str(i1)//&
                               "_j"//str(i2)//&
                               "_k"//str(i3)//&
@@ -773,10 +766,9 @@ contains
   subroutine read_kb_dgf_d1(dG,file)
     type(kb_dgf) :: dG(:)
     character(len=*)    :: file
-    integer             :: unit
     do i1=1,size(dG,1)
        call read_kb_dgf_main(dG(i1),&
-            file//&
+            reg(file)//&
             "_i"//str(i1)&
             )
     enddo
@@ -785,11 +777,10 @@ contains
   subroutine read_kb_dgf_d2(dG,file)
     type(kb_dgf) :: dG(:,:)
     character(len=*)    :: file
-    integer             :: unit
     do i1=1,size(dG,1)
        do i2=1,size(dG,2)
           call read_kb_dgf_main(dG(i1,i2),&
-               file//&
+               reg(file)//&
                "_io"//str(i1)//&
                "_jo"//str(i2)&
                )
@@ -800,12 +791,11 @@ contains
   subroutine read_kb_dgf_d3(dG,file)
     type(kb_dgf) :: dG(:,:,:)
     character(len=*)    :: file
-    integer             :: unit
     do i1=1,size(dG,1)
        do i2=1,size(dG,2)
           do i3=1,size(dG,3)
              call read_kb_dgf_main(dG(i1,i2,i3),&
-                  file//&
+                  reg(file)//&
                   "_i"//str(i1)//&
                   "_j"//str(i2)//&
                   "_k"//str(i3)&
@@ -818,7 +808,6 @@ contains
   subroutine read_kb_dgf_d4(dG,file)
     type(kb_dgf) :: dG(:,:,:,:)
     character(len=*)    :: file
-    integer             :: unit
     Nspin=size(dG,1)
     Norb =size(dG,3)
     do ispin=1,Nspin
@@ -836,14 +825,13 @@ contains
   subroutine read_kb_dgf_d5(dG,file)
     type(kb_dgf) :: dG(:,:,:,:,:)
     character(len=*)    :: file
-    integer             :: unit
     do i1=1,size(dG,1)
        do i2=1,size(dG,2)
           do i3=1,size(dG,3)
              do i4=1,size(dG,4)
                 do i5=1,size(dG,5)
                    call read_kb_dgf_main(dG(i1,i2,i3,i4,i5),&
-                        file//&
+                        reg(file)//&
                         "_i"//str(i1)//&
                         "_j"//str(i2)//&
                         "_k"//str(i3)//&
@@ -860,7 +848,6 @@ contains
   subroutine read_kb_dgf_d6(dG,file)
     type(kb_dgf) :: dG(:,:,:,:,:,:)
     character(len=*)    :: file
-    integer             :: unit
     do i1=1,size(dG,1)
        do i2=1,size(dG,2)
           do i3=1,size(dG,3)
@@ -868,7 +855,7 @@ contains
                 do i5=1,size(dG,5)
                    do i6=1,size(dG,6)
                       call read_kb_dgf_main(dG(i1,i2,i3,i4,i5,i6),&
-                           file//&
+                           reg(file)//&
                            "_i"//str(i1)//&
                            "_j"//str(i2)//&
                            "_k"//str(i3)//&
@@ -887,7 +874,6 @@ contains
   subroutine read_kb_dgf_d7(dG,file)
     type(kb_dgf) :: dG(:,:,:,:,:,:,:)
     character(len=*)    :: file
-    integer             :: unit
     do i1=1,size(dG,1)
        do i2=1,size(dG,2)
           do i3=1,size(dG,3)
@@ -896,7 +882,7 @@ contains
                    do i6=1,size(dG,6)
                       do i7=1,size(dG,7)
                          call read_kb_dgf_main(dG(i1,i2,i3,i4,i5,i6,i7),&
-                              file//&
+                              reg(file)//&
                               "_i"//str(i1)//&
                               "_j"//str(i2)//&
                               "_k"//str(i3)//&
@@ -956,6 +942,73 @@ contains
        check=check.AND.bool(i)
     enddo
   end function inquire_kb_dgf
+
+
+
+
+
+
+
+
+
+  subroutine kb_gf_3dplot(pname,X1,X2,Y)
+    integer                   :: i,j,Nx1,Nx2,count,Nl
+    character(len=*)          :: pname
+    real(8),dimension(:)      :: X1
+    real(8),dimension(:)      :: X2
+    complex(8),dimension(:,:) :: Y
+    real(8)                   :: X1min,X1max
+    real(8)                   :: X2min,X2max
+    character(len=12)         :: minx,miny,maxx,maxy
+    integer                   :: unit
+    Nx1=size(X1) ; Nx2=size(X2)
+    !
+    open(unit=free_unit(unit),file=pname,status='replace')
+    do i=1,Nx1
+       do j=1,Nx2
+          write(unit,*)X1(i),X2(j),dreal(Y(i,j)),dimag(Y(i,j))
+       enddo
+       write(unit,*)""
+    enddo
+    close(unit)
+    !
+    X1min=minval(X1)
+    X1max=maxval(X1)
+    X2min=minval(X2)
+    X2max=maxval(X2)
+    write(minx,"(f12.4)")X1min
+    write(maxx,"(f12.4)")X1max
+    write(miny,"(f12.4)")X2min
+    write(maxy,"(f12.4)")X2max
+    !
+    open(10,file=reg(pname)//"_map.gp")
+    write(10,*)"set pm3d map"
+    write(10,*)"set size square"
+    write(10,*)"set xrange ["//minx//":"//maxx//"]"
+    write(10,*)"set yrange ["//miny//":"//maxy//"]"
+    write(10,*)"set multiplot layout 1, 2"
+    write(10,*)"set title 'Re'"
+    write(10,*)"splot '"//pname//"' using 1:2:3"
+    write(10,*)"set title 'Im'"
+    write(10,*)"splot '"//pname//"' using 1:2:4"
+    close(10)
+    !
+    open(10,file=reg(pname)//"re_surface.gp")
+    write(10,*)"unset key"
+    write(10,*)"unset grid"
+    write(10,*)"set view 50,10,1,1"
+    write(10,*)"set title 'Re'"
+    write(10,*)"splot '"//pname//"' using 1:2:3 with pm3d"
+    close(10)
+
+    open(10,file=reg(pname)//"im_surface.gp")
+    write(10,*)"unset key"
+    write(10,*)"unset grid"
+    write(10,*)"set view 50,10,1,1"
+    write(10,*)"set title 'Im'"
+    write(10,*)"splot '"//pname//"' using 1:2:4 with pm3d"
+    close(10)
+  end subroutine kb_gf_3dplot
 
 
 

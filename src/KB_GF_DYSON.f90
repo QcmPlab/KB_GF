@@ -57,10 +57,10 @@ contains
     type(kb_dgf)                        :: dGk_new
     integer                             :: N,L,Niw
     real(8)                             :: dt,dtau
-    integer                             :: i,j,itau,jtau,s
+    integer                             :: i,j,jtau,s
     complex(8),dimension(:),allocatable :: KxGk
     real(8),dimension(:),allocatable    :: ftau
-    complex(8)                          :: dGk_less,A
+    complex(8)                          :: dGk_less
     !
     N   = cc_params%Nt                 !<== work with the ACTUAL size of the contour
     L   = cc_params%Ntau
@@ -249,7 +249,7 @@ contains
     type(kb_dgf)                          :: dGk_new(:,:)!as K
     integer                               :: N,L,Nso,Niw
     real(8)                               :: dt,dtau
-    integer                               :: i,j,itau,jtau,s
+    integer                               :: i,j,jtau,s
     integer                               :: io,jo,ko
     complex(8)                            :: HxGk
     complex(8),dimension(:),allocatable   :: KxGk
@@ -625,7 +625,7 @@ contains
     type(kb_dgf)                          :: dGk_new(:,:,:,:)!as K
     integer                               :: N,L,Nso,Niw
     real(8)                               :: dt,dtau
-    integer                               :: i,j,itau,jtau,s
+    integer                               :: i,j,jtau,s
     integer                               :: io,jo,ko
     complex(8)                            :: HxGk
     complex(8),dimension(:),allocatable   :: KxGk
@@ -1113,7 +1113,7 @@ contains
     type(kb_dgf)                          :: dGk_new(:,:,:,:,:,:)!as K
     integer                               :: N,L,Nlso,Niw
     real(8)                               :: dt,dtau
-    integer                               :: i,j,itau,jtau,s
+    integer                               :: i,j,jtau,s
     integer                               :: io,jo,ko
     complex(8)                            :: HxGk
     complex(8),dimension(:),allocatable   :: KxGk
@@ -1125,12 +1125,7 @@ contains
     Niw = cc_params%Niw
     dt  = cc_params%dt
     dtau= cc_params%dtau
-    Nlat = size(Gk,1) ; Nspin = size(Gk,3) ; Norb = size(Gk,5) ; Nso=Nlat*Nspin*Norb
-    ! call assert_shape(Hk,[Nlso,Nlso,cc_params%Ntime],"dyson_kb_gf_rank0","Hk")
-    ! call assert_shape_kb_gf(K,[Nlat,Nlat,Nspin,Nspin,Norb,Norb],"dyson_kb_gf_Rank4","K")
-    ! call assert_shape_kb_gf(Gk,[Nlat,Nlat,Nspin,Nspin,Norb,Norb],"dyson_kb_gf_Rank4","Gk")
-    ! call assert_shape_kb_gf(dGk,[Nlat,Nlat,Nspin,Nspin,Norb,Norb],"dyson_kb_gf_Rank4","dGk")
-    ! call assert_shape_kb_gf(dGk_new,[Nlat,Nlat,Nspin,Nspin,Norb,Norb],"dyson_kb_gf_Rank4","dGk_new")
+    Nlat = size(Gk,1) ; Nspin = size(Gk,3) ; Norb = size(Gk,5) ; Nlso=Nlat*Nspin*Norb
     !
     if(all(K%is_zero()))then
        if(imsg)write(*,"(A)") " MSG dyson_kb_gf: K=0 using free_kb_gf"
@@ -1823,8 +1818,6 @@ contains
     type(kb_gf),intent(inout)               :: G(:,:,:,:,:)     !as K
     type(kb_dgf),intent(inout)              :: dG(:,:,:,:,:)    !as K
     type(kb_dgf)                            :: dG_new(:,:,:,:,:)!as K
-    type(kb_gf),dimension(:,:),allocatable  :: K_,G_
-    type(kb_dgf),dimension(:,:),allocatable :: dG_,dG_new_
     integer                                 :: Nk
     Nspin = size(G,1)
     Norb  = size(G,3)
@@ -1865,8 +1858,6 @@ contains
     type(kb_gf),intent(inout)               :: G(:,:,:,:,:)     !as K
     type(kb_dgf),intent(inout)              :: dG(:,:,:,:,:)    !as K
     type(kb_dgf)                            :: dG_new(:,:,:,:,:)!as K
-    type(kb_gf),dimension(:,:),allocatable  :: K_,G_
-    type(kb_dgf),dimension(:,:),allocatable :: dG_,dG_new_
     integer                                 :: Nk
     !
     Nspin = size(K,1)

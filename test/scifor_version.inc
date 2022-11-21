@@ -1,0 +1,3 @@
+SCIFOR VERSION (GIT): befa722c27b15174f8c721ab4d70eff57a3b10bc
+Timestamp: +20 November 2022  15:02:04.027
+ 

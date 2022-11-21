@@ -103,7 +103,7 @@ contains
     type(kb_contour_params),optional,target :: contour
     type(kb_contour_params),pointer :: params
     integer                 :: Ntime,Ntau,Niw,Nwr
-    real(8)                 :: tmax_,dtau_,dt_
+    real(8)                 :: tmax_
     params => cc_params ; if(present(contour))params=>contour
     if(.not.params%status)stop "neq_contour/set_kb_contour_params: Contour not allocated"
     Ntime          = params%Ntime

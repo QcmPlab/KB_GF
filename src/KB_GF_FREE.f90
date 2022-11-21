@@ -43,9 +43,9 @@ contains
     type(kb_dgf)                     :: dGk_new
     integer                          :: N,L,Niw
     real(8)                          :: dt,dtau
-    integer                          :: i,j,itau,jtau,s
+    integer                          :: i,j,jtau
     real(8),dimension(:),allocatable :: ftau
-    complex(8)                       :: dGk_less,A
+    complex(8)                       :: dGk_less
     !
     N   = cc_params%Nt                 !<== work with the ACTUAL size of the contour
     L   = cc_params%Ntau
@@ -74,7 +74,7 @@ contains
        !get d/dt G_k^< = -i H(k,0)G_k^< 
        dGk_new%less(1) = -xi*Hk(1)*Gk%less(1,1)
        !
-       !get d/dt G_k^\lmix = -xi*H(k,0)*G_k^\lmix
+       !get d/dt G_k^\lmix = -i H(k,0)*G_k^\lmix
        dGk_new%lmix(0:)= -xi*Hk(1)*Gk%lmix(1,0:)
        !
        return
@@ -141,7 +141,7 @@ contains
     !
     integer                               :: N,L,Nso,Niw
     real(8)                               :: dt,dtau
-    integer                               :: i,j,itau,jtau,s
+    integer                               :: i,j,jtau
     integer                               :: io,jo,ko
     complex(8)                            :: HxGk
     complex(8),dimension(:),allocatable   :: KxGk
@@ -313,7 +313,7 @@ contains
     !
     integer                               :: N,L,Nso,Niw
     real(8)                               :: dt,dtau
-    integer                               :: i,j,itau,jtau,s
+    integer                               :: i,j,jtau
     integer                               :: io,jo,ko
     complex(8)                            :: HxGk
     complex(8),dimension(:),allocatable   :: KxGk
@@ -533,7 +533,7 @@ contains
     !
     integer                               :: N,L,Nlso,Niw
     real(8)                               :: dt,dtau
-    integer                               :: i,j,itau,jtau,s
+    integer                               :: i,j,jtau
     integer                               :: io,jo,ko
     complex(8)                            :: HxGk
     complex(8),dimension(:),allocatable   :: KxGk
@@ -879,8 +879,6 @@ contains
     type(kb_gf),intent(inout)               :: G(:,:,:,:,:)     ![Nspin][Nspin][Norb][Norb][Nk]
     type(kb_dgf),intent(inout)              :: dG(:,:,:,:,:)    !as G
     type(kb_dgf)                            :: dG_new(:,:,:,:,:)!as G
-    type(kb_gf),dimension(:,:),allocatable  :: K_,G_
-    type(kb_dgf),dimension(:,:),allocatable :: dG_,dG_new_
     integer                                 :: Nk
     Nspin = size(G,1)
     Norb  = size(G,3)

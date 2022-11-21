@@ -184,7 +184,7 @@ contains
 
   elemental subroutine init_kb_dgf_params(dG)
     class(kb_dgf),intent(inout) :: dG
-    integer                     :: i,j,N,L
+    integer                     :: N,L
     !
     if(allocated(dG%less))deallocate(dG%less)
     if(allocated(dG%ret)) deallocate(dG%ret)
@@ -417,7 +417,7 @@ contains
     A%less = C
     A%ret  = C
     A%lmix = C
-    A%mats = C
+    A%mats = dreal(C)
     A%iw   = C
   end subroutine kb_gf_equal_scalar
 
@@ -490,7 +490,7 @@ contains
     Gout%less(:,:) = C*Gin%less(:,:)
     Gout%ret(:,:)  = C*Gin%ret(:,:)
     Gout%lmix(:,0:)= C*Gin%lmix(:,0:)
-    Gout%mats(0:)  = C*Gin%mats(0:)
+    Gout%mats(0:)  = dreal(C*Gin%mats(0:))
     Gout%iw(:)     = C*Gin%iw(:)
   end function kb_gf_left_times_cmplx
 
@@ -571,7 +571,7 @@ contains
     Gout%less(:,:) = Gin%less(:,:)/C
     Gout%ret(:,:)  = Gin%ret(:,:)/C
     Gout%lmix(:,0:)= Gin%lmix(:,0:)/C
-    Gout%mats(0:)  = Gin%mats(0:)/C
+    Gout%mats(0:)  = dreal(Gin%mats(0:)/C)
     Gout%iw(:)     = Gin%iw(:)/C
   end function kb_gf_right_division_cmplx
 
@@ -620,7 +620,7 @@ contains
   elemental function check_kb_gf(G) result(bool)
     class(kb_gf),intent(in) :: G
     logical                 :: bool
-    integer                 :: N,L,Lf
+    integer                 :: N,L
     logical                 :: check(4)
     !
     N=cc_params%Ntime              !<== check size at maximum time
@@ -638,7 +638,7 @@ contains
   elemental function check_kb_dgf(G) result(bool)
     class(kb_dgf),intent(in) :: G
     logical                  :: bool
-    integer                  :: N,L,Lf
+    integer                  :: N,L
     logical                  :: check(4)
     !
     N=cc_params%Ntime              !<== check size at maximum time

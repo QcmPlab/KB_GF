@@ -41,7 +41,7 @@ contains
     logical                             :: notail_
     integer                             :: N,L,Niw
     real(8)                             :: dt,dtau
-    integer                             :: i,j,s,itau,jtau
+    integer                             :: i,j,s,jtau
     real(8),dimension(:),allocatable    :: ftau
     complex(8),dimension(:),allocatable :: KxG
     !
@@ -224,7 +224,7 @@ contains
     logical                               :: notail_
     integer                               :: N,L,Niw
     real(8)                               :: dt,dtau
-    integer                               :: Nso,i,j,s,itau,jtau,io,jo,ko
+    integer                               :: Nso,i,j,s,jtau,io,jo,ko
     real(8),dimension(:),allocatable      :: ftau
     complex(8),dimension(:),allocatable   :: KxG
     complex(8),dimension(:,:),allocatable :: Amat,Gmat,GxAmat
@@ -481,7 +481,7 @@ contains
     logical                               :: notail_
     integer                               :: N,L,Niw
     real(8)                               :: dt,dtau
-    integer                               :: Nspin,Norb,Nso,i,j,s,itau,jtau,io,jo
+    integer                               :: Nspin,Norb,Nso,i,j,s,jtau,io,jo
     real(8),dimension(:),allocatable      :: ftau
     complex(8),dimension(:),allocatable   :: KxG
     complex(8),dimension(:,:),allocatable :: Amat,Gmat,GxAmat
@@ -797,7 +797,7 @@ contains
     logical                               :: notail_
     integer                               :: N,L,Niw
     real(8)                               :: dt,dtau
-    integer                               :: Nlat,Nspin,Norb,Nlso,i,j,s,itau,jtau,io,jo,ko
+    integer                               :: Nlat,Nspin,Norb,Nlso,i,j,s,jtau,io,jo
     real(8),dimension(:),allocatable      :: ftau
     complex(8),dimension(:),allocatable   :: KxG
     complex(8),dimension(:,:),allocatable :: Amat,Gmat,GxAmat
@@ -1173,7 +1173,6 @@ contains
     logical,optional          :: notail
     logical                   :: notail_
     integer                   :: Nspin,Norb,Nso
-    integer                   :: ispin,jspin,iorb,jorb,io,jo
     notail_=.true.;if(present(notail))notail_=notail
     Nspin = size(G,1) ; Norb = size(G,3) ; Nso = Nspin*Norb
     call assert_shape_kb_gf(G,[Nspin,Nspin,Norb,Norb],"vie_kb_gf_d4","G")
@@ -1216,10 +1215,6 @@ contains
     logical,optional          :: notail
     logical                   :: notail_
     integer                   :: Nlat,Nspin,Norb,Nlso
-    integer                   :: ilat,jlat
-    integer                   :: ispin,jspin
-    integer                   :: iorb,jorb
-    integer                   :: io,jo
     notail_=.true.;if(present(notail))notail_=notail
     Nlat = size(G,1) ; Nspin = size(G,3) ;  Norb = size(G,5) ; Nlso = Nlat*Nspin*Norb
     call assert_shape_kb_gf(G,[Nlat,Nlat,Nspin,Nspin,Norb,Norb],"vie_kb_gf_d6","G")
@@ -1240,8 +1235,8 @@ contains
     type(kb_gf),intent(inout) :: G(:,:,:,:,:,:,:)
     type(kb_gf),intent(in)    :: K(:,:,:,:,:,:,:)
     type(kb_gf),intent(in)    :: Q(:,:,:,:,:,:,:)
-    integer                   :: Ni,N1,N2,N3
-    logical,optional         :: notail
+    integer                   :: N1,N2,N3,Nk
+    logical,optional          :: notail
     logical                   :: notail_
     notail_=.true.;if(present(notail))notail_=notail
     N1 = size(G,1)
