@@ -416,21 +416,13 @@ contains
     character(len=*)       :: file
     type(kb_gf),intent(in) :: G
     integer                :: Nt
-    write(0,*)"check"
     if(.not.G%check())stop "contour_gf/plot_kb_gf: G.check = F"
     Nt=cc_params%Ntime
-    write(0,*)"enter kb_gf_3dplot Gless"
-    ! call splot3d("Gloc_less.neqipt",cc_params%t,cc_params%t,G%less(1:Nt,1:Nt))
-    call kb_gf_3dplot("Gloc_less.neqipt",cc_params%t,cc_params%t,G%less(1:Nt,1:Nt))
-    ! write(0,*)"plot 3d Gret ",file//"_ret_t_t.neqipt"
-    ! call splot3d(file//"_ret_t_t.neqipt",cc_params%t(:),cc_params%t(:),G%ret(1:Nt,1:Nt))
-    ! write(0,*)"plot 3d Glmix ",file//"_lmix_t_tau.neqipt"
-    ! call splot3d(file//"_lmix_t_tau.neqipt",cc_params%t(:),cc_params%tau(0:),G%lmix(1:Nt,0:))
-    ! write(0,*)"plot Gtau ",file//"_mats_tau.neqipt"
-    ! call splot(file//"_mats_tau.neqipt",cc_params%tau(0:),G%mats(0:))
-    ! write(0,*)"plot Giw ",file//"_mats_iw.neqipt"
-    ! call splot(file//"_mats_iw.neqipt",cc_params%wm(:),G%iw(:))
-    write(0,*)"exit"
+    call kb_gf_3dplot(file//"_less",cc_params%t,cc_params%t,G%less(1:Nt,1:Nt))
+    call kb_gf_3dplot(file//"_ret",cc_params%t(:),cc_params%t(:),G%ret(1:Nt,1:Nt))
+    call kb_gf_3dplot(file//"_lmix",cc_params%t(:),cc_params%tau(0:),G%lmix(1:Nt,0:))
+    call kb_gf_plot_RR(file//"_mats_tau",cc_params%tau(0:),G%mats(0:))
+    call kb_gf_plot_RC(file//"_mats_iw",cc_params%wm(:),G%iw(:))
   end subroutine plot_kb_gf_main
 
 
@@ -449,13 +441,10 @@ contains
     character(len=*) :: file
     do i1=1,size(G,1)
        do i2=1,size(G,2)
-          write(0,*)i1,i2,size(G,1),size(G,2)
-          write(0,*)"before call"
           call plot_kb_gf_main(G(i1,i2),&
                str(file)//&
                "_io"//str(i1)//&
                "_jo"//str(i2))
-          write(0,*)"after call"
        enddo
     enddo
   end subroutine plot_kb_gf_d2
@@ -993,7 +982,7 @@ contains
     write(10,*)"splot '"//pname//"' using 1:2:4"
     close(10)
     !
-    open(10,file=reg(pname)//"re_surface.gp")
+    open(10,file=reg(pname)//"_re_surface.gp")
     write(10,*)"unset key"
     write(10,*)"unset grid"
     write(10,*)"set view 50,10,1,1"
@@ -1001,7 +990,7 @@ contains
     write(10,*)"splot '"//pname//"' using 1:2:3 with pm3d"
     close(10)
 
-    open(10,file=reg(pname)//"im_surface.gp")
+    open(10,file=reg(pname)//"_im_surface.gp")
     write(10,*)"unset key"
     write(10,*)"unset grid"
     write(10,*)"set view 50,10,1,1"
@@ -1010,7 +999,31 @@ contains
     close(10)
   end subroutine kb_gf_3dplot
 
+  subroutine kb_gf_plot_RR(pname,X,Y1)
+    integer                       :: i,Np,unit
+    character(len=*)              :: pname
+    real(8),dimension(:)          :: X
+    real(8),dimension(size(X))    :: Y1
+    open(free_unit(unit),file=reg(pname))
+    Np=size(X)
+    do i=1,Np
+       write(unit,*)X(i),Y1(i)
+    enddo
+    close(unit)
+  end subroutine kb_gf_plot_RR
 
+  subroutine kb_gf_plot_RC(pname,X,Y1)
+    integer                       :: i,j,Np,unit
+    character(len=*)              :: pname
+    real(8),dimension(:)          :: X
+    complex(8),dimension(size(X)) :: Y1
+    open(free_unit(unit),file=reg(pname))
+    Np=size(X)
+    do i=1,Np
+       write(unit,*)X(i),dimag(Y1(i)),dreal(Y1(i))
+    enddo
+    close(unit)
+  end subroutine kb_gf_plot_RC
 
 
 END MODULE KB_GF_IO

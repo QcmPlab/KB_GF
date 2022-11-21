@@ -122,7 +122,7 @@ contains
     params%wm      = pi/beta*(2*arange(1,Niw)-1)
     params%wr      = linspace(-wmax,wmax,Nwr)
     call print_kb_contour_params(params)
-    call write_kb_contour_params("contour_info.neqipt",params)
+    call write_kb_contour_params("contour_info",params)
   end subroutine build_kb_contour_params
 
 

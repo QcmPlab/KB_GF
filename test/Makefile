@@ -8,11 +8,12 @@ PLAT=gnu
 DIREXE=.
 
 ##$ CHOOSE THE DRIVER CODE:
-EXE=test_kb_gf
+#EXE=test_kb_gf
+EXE=test_tb_2d
 
 ##$ SET INCLUDE AND LINK OPTIONS USING pkg-config
-INCARGS=$(shell pkg-config --cflags kb_gf scifor)
-LIBARGS=$(shell pkg-config --libs   kb_gf scifor)
+INCARGS=$(shell pkg-config --cflags kb_gf dmft_tools scifor)
+LIBARGS=$(shell pkg-config --libs   kb_gf dmft_tools scifor)
 
 ifeq ($(PLAT),intel)
 FFLAG=-O2 -ftz
@@ -23,7 +24,8 @@ endif
 
 ifeq ($(PLAT),gnu)
 FFLAG = -O2 -ffree-line-length-none
-DFLAG = -O0 -p -g -fimplicit-none -Wsurprising  -Waliasing -fwhole-file -fcheck=all -pedantic -fbacktrace -ffree-line-length-none
+DFLAG = -O0 -p -g -fbacktrace -fsanitize=address -Wall -fcheck=all -pedantic -ffree-line-length-none
+#-O0 -p -g -fimplicit-none -Wsurprising  -Waliasing -fwhole-file -fcheck=all -pedantic -fbacktrace -ffree-line-length-none
 OFLAG = -O3 -ffast-math -march=native -funroll-all-loops -fno-protect-parens -flto -ffree-line-length-none
 FPPFLAG =-cpp
 endif

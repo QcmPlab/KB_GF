@@ -2,3 +2,4 @@ build
 build_jarvis
 KB_VERSION.f90
 build_debug
+build_jarvis_debug
